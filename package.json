@@ -1,0 +1,19 @@
+{
+  "name": "dsc-plugin-template",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "dsc 插件开发模板：TypeScript + esbuild,打包为单个浏览器 ESM 产物",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "node build.mjs",
+    "type": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
