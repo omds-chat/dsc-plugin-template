@@ -9,7 +9,7 @@ dsc 插件开发模板：用 TypeScript 编写源码,用 esbuild 打包成单个
 本模板提供一个能直接跑通的最小插件工程,包含：
 
 - 一份可运行的插件清单与生命周期入口
-- 一份契约类型的本地副本,脱离 dsce 源码也能获得类型提示
+- 一份契约类型的本地副本,脱离 DeepSeek-Chat-Enhanced 源码也能获得类型提示
 - 一套 TypeScript 与 esbuild 的构建配置,产物固定为单文件
 
 模板本身不做业务,只演示插件与宿主之间的最小交互：订阅会话切换事件、写插件日志、用宿主文案键提示一次。
@@ -73,7 +73,7 @@ pnpm run build
 | `pnpm run type` | 运行 `tsc --noEmit` 做类型检查 |
 | `pnpm run build` | 打包产物并打印路径与体积 |
 
-## 如何把产物装进 dsce
+## 如何把产物装进 DeepSeek-Chat-Enhanced
 
 1. 用本机静态服务器提供 `dist/plugin.js`,例如 `http://localhost:8090/plugin.js`。
 2. 点击侧边栏底部的「插件」按钮,打开插件面板。
@@ -81,7 +81,7 @@ pnpm run build
 4. 安装成功后插件自动激活,「已安装」中的状态显示为「运行中」。
 5. 点击「查看日志」可以看到 `context.log` 写入的内容,切换会话后日志会追加一条。
 
-地址规则：分发给用户时使用 `https://` 地址。本机调试时 dsce 允许 `http://localhost`、`http://127.0.0.1` 与 `http://[::1]`,其余地址必须是 `https://`。
+地址规则：分发给用户时使用 `https://` 地址。本机调试时 DeepSeek-Chat-Enhanced 允许 `http://localhost`、`http://127.0.0.1` 与 `http://[::1]`,其余地址必须是 `https://`。
 
 产物改动后需要先在面板卸载再重新安装,同一地址的模块会被浏览器缓存。
 
@@ -105,7 +105,7 @@ pnpm run build
 - `id` 全局唯一,重复安装会被拒绝。
 - `version` 是插件版本,与模板 `package.json` 中的版本无关。
 - `capabilities` 只写能力表内的名字,未知或重复的能力会让安装被拒绝。
-- 契约速查见组织内的 `.agents/dsc-plugin-contract.md`,若与 dsce 源码冲突以源码为准。
+- 契约速查见组织内的 `.agents/dsc-plugin-contract.md`,若与 DeepSeek-Chat-Enhanced 源码冲突以源码为准。
 
 ## 能力清单
 

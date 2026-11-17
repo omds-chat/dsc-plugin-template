@@ -9,7 +9,7 @@ A template for dsc plugins: source in TypeScript, bundled by esbuild into a sing
 This template is a minimal project that already runs, and it contains:
 
 - a working plugin manifest and lifecycle entry points
-- a local copy of the contract types, so type hints work without the dsce source tree
+- a local copy of the contract types, so type hints work without the DeepSeek-Chat-Enhanced source tree
 - a TypeScript and esbuild setup whose output is always a single file
 
 The template does not implement any business logic. It only shows the smallest possible interaction between a plugin and the host: subscribing to session switches, writing plugin logs, and showing one host notice through an existing message key.
@@ -73,7 +73,7 @@ The output is `dist/plugin.js`. The build script clears `dist/` first, then chec
 | `pnpm run type` | Run `tsc --noEmit` for a type check |
 | `pnpm run build` | Bundle the plugin and print path and size |
 
-## Installing the output into dsce
+## Installing the output into DeepSeek-Chat-Enhanced
 
 1. Serve `dist/plugin.js` from a local static server, for example `http://localhost:8090/plugin.js`.
 2. Open the plugin panel with the plugin button at the bottom of the sidebar.
@@ -81,7 +81,7 @@ The output is `dist/plugin.js`. The build script clears `dist/` first, then chec
 4. The plugin activates right after a successful install, and its status in the installed list shows as running.
 5. Open the plugin log to see what `context.log` wrote; every session switch appends one line.
 
-URL rules: use an `https://` URL when distributing. For local debugging dsce accepts `http://localhost`, `http://127.0.0.1` and `http://[::1]`; every other address must use `https://`.
+URL rules: use an `https://` URL when distributing. For local debugging DeepSeek-Chat-Enhanced accepts `http://localhost`, `http://127.0.0.1` and `http://[::1]`; every other address must use `https://`.
 
 After changing the output, uninstall the plugin in the panel and install it again, because the browser caches the module for a given URL.
 
@@ -105,7 +105,7 @@ Things to keep in mind:
 - `id` is globally unique; a second plugin with the same id is rejected.
 - `version` is the plugin version and is unrelated to the version in `package.json`.
 - `capabilities` may only contain names from the capability table; unknown or duplicate entries make the install fail.
-- The organization keeps a contract reference at `.agents/dsc-plugin-contract.md`; if it disagrees with the dsce source, the source wins.
+- The organization keeps a contract reference at `.agents/dsc-plugin-contract.md`; if it disagrees with the DeepSeek-Chat-Enhanced source, the source wins.
 
 ## Capabilities
 

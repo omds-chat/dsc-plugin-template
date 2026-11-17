@@ -2,7 +2,7 @@
  * dsc 插件契约的精简类型声明。
  *
  * 这份声明是契约的本地副本,只覆盖模板用到的字段与能力对象。
- * 若与 dsce 源码不一致,以 dsce 源码为准。
+ * 若与 DeepSeek-Chat-Enhanced 源码不一致,以该源码为准。
  * 契约速查：.agents/dsc-plugin-contract.md(组织内只读文件)。
  */
 
