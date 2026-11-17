@@ -85,6 +85,8 @@ pnpm run build
 
 产物改动后需要先在面板卸载再重新安装,同一地址的模块会被浏览器缓存。
 
+部署要求：产物以 ES 模块的形式通过 `import()` 加载,浏览器对跨源模块导入强制校验 CORS。因此托管方必须返回 `Access-Control-Allow-Origin` 响应头(例如 `Access-Control-Allow-Origin: *`),否则插件产物托管在另一个源(不同域名、端口或协议)时安装会失败。把产物与页面放在同一域名下同源部署,则不需要该响应头。
+
 ## 如何改 manifest
 
 清单写在 [src/manifest.ts](src/manifest.ts),由 [src/index.ts](src/index.ts) 转出为具名导出,安装时以产物自带的 `manifest` 为准。
@@ -145,6 +147,10 @@ pnpm run build
 ### 版本不兼容
 
 安装结果为 `incompatible-version`,说明 `engines` 与宿主 dsc-core 版本不匹配。当前宿主为 `1.0.0`,模板使用 `^1.0.0`;宿主主版本变化时按需调整 `engines`。
+
+### 从地址安装失败
+
+先确认产物地址本身可访问：在新标签页直接打开该地址,应当返回脚本内容而不是 404、错误页或登录跳转。再确认 CORS：产物按 ES 模块通过 `import()` 加载,跨源托管必须返回 `Access-Control-Allow-Origin`;缺少该响应头时浏览器会在控制台报 CORS 错误并中断安装。把产物与页面放在同一域名下同源部署可以避开这一限制。
 
 ## 许可证
 

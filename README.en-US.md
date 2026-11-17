@@ -85,6 +85,8 @@ URL rules: use an `https://` URL when distributing. For local debugging DeepSeek
 
 After changing the output, uninstall the plugin in the panel and install it again, because the browser caches the module for a given URL.
 
+Deployment requirement: the output is loaded as an ES module through `import()`, and browsers enforce CORS on cross-origin module imports. The host must therefore return an `Access-Control-Allow-Origin` header, for example `Access-Control-Allow-Origin: *`; otherwise installing fails when the output is served from a different origin (different domain, port or protocol). Serving the output from the same domain as the page needs no such header.
+
 ## Editing the manifest
 
 The manifest lives in [src/manifest.ts](src/manifest.ts) and is re-exported by [src/index.ts](src/index.ts). Installation uses the `manifest` exported by the output.
@@ -145,6 +147,10 @@ The install result is `invalid-manifest` and the host shows `pluginManifestMissi
 ### Incompatible version
 
 The install result is `incompatible-version`, which means `engines` does not match the host dsc-core version. The current host is `1.0.0` and the template uses `^1.0.0`; adjust `engines` when the host major version changes.
+
+### Install from a URL fails
+
+First check that the output URL itself is reachable: opening it in a new tab should return the script, not a 404, an error page or a login redirect. Then check CORS: the output is loaded as an ES module through `import()`, so a cross-origin host must return `Access-Control-Allow-Origin`; without that header the browser reports a CORS error and the install stops. Serving the output from the same domain as the page avoids the restriction.
 
 ## License
 
