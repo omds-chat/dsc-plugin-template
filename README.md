@@ -10,7 +10,7 @@ dsc 插件开发模板:用 TypeScript 写源码,用 esbuild 打包成单个浏�
 - 一份契约类型的本地副本,脱离 DeepSeek-Chat-Enhanced 源码也有类型提示
 - 一套构建流程:打包 `plugin.js`、生成并自校验 `meta.json`、写入 `MUST_PLUSH_WITH_PACKAGE` 标记
 - 一条可选的作者签名链路:打开开关后用 openssl 对产物生成 `.author.sig`
-- 所有产物强制 LF 换行,`plugin.js` 默认行压缩
+- 文本产物强制 LF 换行,`plugin.js` 默认行压缩
 
 模板本身不做业务,只演示插件与宿主之间的最小交互:订阅会话切换事件、写插件日志、用宿主文案键提示一次。
 
@@ -46,7 +46,7 @@ dsc-plugin-template/
 | `package.json` | 工程信息与 `meta.json` 的数据来源 |
 | `src/index.ts` | 激活与停用入口 |
 | `src/manifest.ts` | 插件运行时清单,产物继续导出 |
-| `schemas/runtime/` | 一份 JSON Schema,校验依据 |
+| `schemas/runtime/` | 一份 JSON Schema,自校验规则与之保持一致 |
 | `.env.example` | 环境变量模板 |
 
 ## 环境要求
@@ -55,6 +55,7 @@ dsc-plugin-template/
 |:---:|:---:|
 | Node.js | 18 或更高版本 |
 | pnpm | 12 或更高版本 |
+| OpenSSL | 3.0 或更高版本,仅启用作者签名时需要 |
 | 产物目标浏览器 | Chrome 105、Edge 105、Safari 16、Firefox 110 |
 
 pnpm 12 默认不执行依赖的安装脚本,仓库里的 `pnpm-workspace.yaml` 通过 `allowBuilds` 显式允许 esbuild 的构建脚本,请不要删除这个文件。
@@ -94,7 +95,7 @@ dist/
 
 | 产物 | 何时产出 | 说明 |
 |:---:|:---:|:---:|
-| `meta.json` | 每次构建 | 生成后立即按 `schemas/runtime/meta.json` 自校验,不通过则构建失败 |
+| `meta.json` | 每次构建 | 生成后立即按 `schemas/runtime/meta.json` 的规则自校验,不通过则构建失败 |
 | `plugin.js` | 每次构建 | 单文件 ESM,导出 `manifest` 与 `activate` |
 | `meta.json.author.sig` | 仅启用作者签名时 | `meta.json` 的裸公钥分离签名,64 字节二进制 |
 | `plugin.js.author.sig` | 仅启用作者签名时 | `plugin.js` 的裸公钥分离签名,64 字节二进制 |
@@ -152,7 +153,7 @@ pnpm run build
 
 | 环境变量 | 取值 | 说明 |
 |:---:|:---:|:---:|
-| `AUTHOR_SIGN_ENABLE` | `true` | 只有 `true` 才启用作者签名,其他取值视为关闭 |
+| `AUTHOR_SIGN_ENABLE` | `true` | 只有 `true` 才启用作者签名(忽略大小写与首尾空格),其他取值视为关闭 |
 | `AUTHOR_SIGN_PRIVATE_KEY` | PKCS#8 PEM | Ed25519 私钥内容,也接受私钥文件路径 |
 
 启用后,构建对 `meta.json` 与 `plugin.js` 各生成一条签名,等价于手工执行:
@@ -196,11 +197,13 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 
 ## 把产物装进 DeepSeek-Chat-Enhanced
 
+用于在本机验证构建结果:
+
 1. 用本机静态服务器提供 `dist/` 目录,例如 `http://localhost:8090/`。
-2. 点击侧边栏底部的「插件」按钮,打开插件面板。
-3. 在面板底部的「从地址安装」输入框中粘贴 `plugin.js` 的地址,点击「安装」。
-4. 安装成功后插件自动激活,「已安装」中的状态显示为「运行中」。
-5. 点击「查看日志」可以看到 `context.log` 写入的内容,切换会话后日志会追加一条。
+2. 在插件面板的「从地址安装」中填入 `plugin.js` 的地址并安装;安装成功后插件自动激活,状态显示为「运行中」。
+3. 打开「查看日志」可以看到 `context.log` 写入的内容,切换会话后日志会追加一条。
+
+面向普通用户的说明见 [README.user.md](README.user.md)。
 
 地址规则:分发给用户时使用 `https://` 地址。本机调试时 DeepSeek-Chat-Enhanced 允许 `http://localhost`、`http://127.0.0.1` 与 `http://[::1]`,其余地址必须是 `https://`。
 
@@ -221,7 +224,7 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 | `dependencies` | 否 | 依赖的插件 id,安装时须已存在,激活时须已激活 |
 | `conflicts` | 否 | 冲突的插件 id,同时安装会被拒绝 |
 | `capabilities` | 是 | 申请的能力,不得重复 |
-| `contributions` | 否 | 订阅的贡献点,当前只有 `session:changed` |
+| `contributions` | 否 | 订阅的贡献点,可选值为 `session:changed` |
 
 改清单时的注意事项:
 
@@ -242,7 +245,7 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 | `settings:locale` | `context.settings.locale` | 60 次 / 10 秒 |
 | `plugins:storage` | `context.storage` | 100 次 / 10 秒,单插件 64KB |
 
-`net:fetch` 只对内置插件开放,第三方插件在清单里写它会被当作未知能力拒绝。
+`net:fetch` 仅内置插件可申请,第三方插件在清单里写它会被拒绝。
 
 模板默认申请 `events:session` 与 `notify` 两项能力,只订阅 `session:changed` 一个贡献点。
 
@@ -255,6 +258,7 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 - 发布前在浏览器控制台执行一次 `import('https://你的地址/plugin.js')`,确认没有语法错误与缺失依赖。
 - `dist/` 已被 `.gitignore` 忽略,需要交付产物时在 Release 中附带。
 - 插件运行在用户浏览器中,可以接触 API Key 与当前会话内容,分发时必须提示用户只安装信任来源的插件。
+- [README.user.md](README.user.md) 是面向普通用户的说明文档,发布前把其中的占位内容替换为实际的插件说明。
 
 ## 常见问题
 
@@ -264,11 +268,11 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 
 ### meta.json 校验失败
 
-构建脚本按 `schemas/runtime/meta.json` 自校验,报错会指出具体字段。常见原因是 `package.json` 的 `name` 不匹配 `dsc-xxx`、`version` 不是三段数字、`dsc` 块缺少 `engines` 或 `repo_link`,或 `author` 写成了对象。
+构建脚本按 `schemas/runtime/meta.json` 的规则自校验,报错会指出具体字段。常见原因是 `package.json` 的 `name` 不匹配 `dsc-xxx`、`version` 不是三段数字、`dsc` 块缺少 `engines` 或 `repo_link`,或 `author` 写成了对象。
 
 ### 签名没有产出
 
-`AUTHOR_SIGN_ENABLE` 只认 `true`,写成 `1`、`yes` 或带引号的其他值都会视为关闭。启用后如果 `AUTHOR_SIGN_PRIVATE_KEY` 缺失、不是 PKCS#8 PEM,或不是 Ed25519 私钥,构建会直接失败并打印原因。
+`AUTHOR_SIGN_ENABLE` 只认 `true`(忽略大小写与首尾空格),写成 `1`、`yes` 等取值都会视为关闭。启用后如果 `AUTHOR_SIGN_PRIVATE_KEY` 缺失、不是 PKCS#8 PEM,或不是 Ed25519 私钥,构建会直接失败并打印原因。
 
 签名产出后验签不通过,通常是签名与交付之间的文件被重新保存过:CRLF 与 LF 的差别就足以让验签失败。
 
@@ -278,7 +282,7 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 
 ### 版本不兼容
 
-安装结果为 `incompatible-version`,说明 `engines` 与宿主 dsc-core 版本不匹配。当前宿主为 `1.0.0`,模板使用 `^1.0.0`;宿主主版本变化时按需调整 `engines`。
+安装结果为 `incompatible-version`,说明 `engines` 与宿主 dsc-core 版本不匹配。模板声明 `^1.0.0`;宿主主版本变化时按需调整 `engines`。
 
 ### 从地址安装失败
 

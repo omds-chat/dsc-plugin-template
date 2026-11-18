@@ -10,7 +10,7 @@ A template for dsc plugins: source in TypeScript, bundled by esbuild into a sing
 - a local copy of the contract types, so type hints work without the DeepSeek-Chat-Enhanced source tree
 - a build that bundles `plugin.js`, generates and self-validates `meta.json`, and writes the `MUST_PLUSH_WITH_PACKAGE` marker
 - an optional author signing step that writes `.author.sig` files with openssl
-- LF line endings on every output, with minification on by default
+- LF line endings on every text output, with minification on by default
 
 The template does not implement any business logic. It only shows the smallest possible interaction between a plugin and the host.
 
@@ -46,7 +46,7 @@ dsc-plugin-template/
 | `package.json` | Project metadata and the source of `meta.json` |
 | `src/index.ts` | Activation and deactivation entry points |
 | `src/manifest.ts` | Runtime manifest, still exported by the output |
-| `schemas/runtime/` | The JSON Schema used for validation |
+| `schemas/runtime/` | The JSON Schema that the self-validation follows |
 | `.env.example` | Environment template |
 
 ## Requirements
@@ -55,6 +55,7 @@ dsc-plugin-template/
 |:---:|:---:|
 | Node.js | 18 or later |
 | pnpm | 12 or later |
+| OpenSSL | 3.0 or later, needed only when author signing is on |
 | Output browsers | Chrome 105, Edge 105, Safari 16, Firefox 110 |
 
 pnpm 12 does not run dependency install scripts by default; `pnpm-workspace.yaml` allows the esbuild build script through `allowBuilds`, so do not delete that file.
@@ -94,7 +95,7 @@ dist/
 
 | Output | When | Notes |
 |:---:|:---:|:---:|
-| `meta.json` | every build | Validated against `schemas/runtime/meta.json` right after generation; a failure stops the build |
+| `meta.json` | every build | Validated against the rules in `schemas/runtime/meta.json` right after generation; a failure stops the build |
 | `plugin.js` | every build | Single-file ESM exporting `manifest` and `activate` |
 | `meta.json.author.sig` | only when signing is enabled | Detached raw-public-key signature for `meta.json`, 64 binary bytes |
 | `plugin.js.author.sig` | only when signing is enabled | Detached raw-public-key signature for `plugin.js`, 64 binary bytes |
@@ -152,7 +153,7 @@ pnpm run build
 
 | Variable | Value | Notes |
 |:---:|:---:|:---:|
-| `AUTHOR_SIGN_ENABLE` | `true` | Only `true` enables signing, anything else counts as off |
+| `AUTHOR_SIGN_ENABLE` | `true` | Only `true` enables signing (case and surrounding spaces are ignored), anything else counts as off |
 | `AUTHOR_SIGN_PRIVATE_KEY` | PKCS#8 PEM | Ed25519 private key, or a path to a key file |
 
 When enabled, the build writes one signature for `meta.json` and one for `plugin.js`, equivalent to running:
@@ -196,11 +197,13 @@ Authors only produce `.author.sig` and `author_pub.pem`. The CMS `*.sig` files a
 
 ## Installing the output into DeepSeek-Chat-Enhanced
 
+Use this to verify a build on your machine:
+
 1. Serve the `dist/` directory from a local static server, for example `http://localhost:8090/`.
-2. Open the plugin panel with the plugin button at the bottom of the sidebar.
-3. Paste the `plugin.js` URL into the install-from-URL field, then click install.
-4. The plugin activates right after a successful install, and its status shows as running.
-5. Open the plugin log to see what `context.log` wrote; every session switch appends one line.
+2. Install the `plugin.js` URL through the install-from-URL field of the plugin panel; the plugin activates right after a successful install and its status shows as running.
+3. Open the plugin log to see what `context.log` wrote; every session switch appends one line.
+
+The end-user document is [README.user.md](README.user.md).
 
 URL rules: use an `https://` URL when distributing. For local debugging DeepSeek-Chat-Enhanced accepts `http://localhost`, `http://127.0.0.1` and `http://[::1]`; every other address must use `https://`.
 
@@ -221,7 +224,7 @@ The manifest lives in [src/manifest.ts](src/manifest.ts) and is re-exported by [
 | `dependencies` | no | Required plugin ids, present at install time and active at activation time |
 | `conflicts` | no | Conflicting plugin ids, installing both is rejected |
 | `capabilities` | yes | Requested capabilities, no duplicates |
-| `contributions` | no | Subscribed contribution points, currently only `session:changed` |
+| `contributions` | no | Subscribed contribution points, the only value is `session:changed` |
 
 Things to keep in mind:
 
@@ -242,7 +245,7 @@ Things to keep in mind:
 | `settings:locale` | `context.settings.locale` | 60 calls / 10 s |
 | `plugins:storage` | `context.storage` | 100 calls / 10 s, 64KB per plugin |
 
-`net:fetch` is available to built-in plugins only; a third-party manifest that requests it is rejected as an unknown capability.
+`net:fetch` is available to built-in plugins only; a third-party manifest that requests it is rejected.
 
 The template requests `events:session` and `notify`, and subscribes to the single contribution point `session:changed`.
 
@@ -255,6 +258,7 @@ The template requests `events:session` and `notify`, and subscribes to the singl
 - Before publishing, run `import('https://your-host/plugin.js')` once in the browser console to confirm there is no syntax error and no missing dependency.
 - `dist/` is ignored by `.gitignore`; attach the output to a release when you need to ship it.
 - Plugins run in the user browser and can reach the API key and the current conversation, so any distribution must tell users to install only plugins from sources they trust.
+- [README.user.md](README.user.md) is the end-user document; replace its placeholders with the real plugin description before publishing.
 
 ## FAQ
 
@@ -264,11 +268,11 @@ The build clears `dist/` and checks the output list; only `meta.json`, `plugin.j
 
 ### meta.json fails validation
 
-The build validates against `schemas/runtime/meta.json` and names the failing field. Common causes are a `name` in `package.json` that does not match `dsc-xxx`, a `version` without three numeric segments, a `dsc` block missing `engines` or `repo_link`, or an `author` written as an object.
+The build validates against the rules in `schemas/runtime/meta.json` and names the failing field. Common causes are a `name` in `package.json` that does not match `dsc-xxx`, a `version` without three numeric segments, a `dsc` block missing `engines` or `repo_link`, or an `author` written as an object.
 
 ### No signature is produced
 
-`AUTHOR_SIGN_ENABLE` accepts only `true`; `1`, `yes` or a quoted value counts as off. When signing is on and `AUTHOR_SIGN_PRIVATE_KEY` is missing, is not PKCS#8 PEM, or is not an Ed25519 key, the build fails and prints the reason.
+`AUTHOR_SIGN_ENABLE` accepts only `true` (case and surrounding spaces are ignored); `1`, `yes` and similar values count as off. When signing is on and `AUTHOR_SIGN_PRIVATE_KEY` is missing, is not PKCS#8 PEM, or is not an Ed25519 key, the build fails and prints the reason.
 
 A signature that fails verification usually means a file was re-saved between signing and delivery: CRLF against LF alone is enough to break it.
 
@@ -278,7 +282,7 @@ The install result is `invalid-manifest` and the host shows `pluginManifestMissi
 
 ### Incompatible version
 
-The install result is `incompatible-version`, which means `engines` does not match the host dsc-core version. The current host is `1.0.0` and the template uses `^1.0.0`; adjust `engines` when the host major version changes.
+The install result is `incompatible-version`, which means `engines` does not match the host dsc-core version. The template declares `^1.0.0`; adjust `engines` when the host major version changes.
 
 ### Install from a URL fails
 
