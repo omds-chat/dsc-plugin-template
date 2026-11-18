@@ -9,7 +9,7 @@ A template for dsc plugins: source in TypeScript, bundled by esbuild into a sing
 - a minimal plugin that already runs: manifest, activate, deactivate
 - a local copy of the contract types, so type hints work without the DeepSeek-Chat-Enhanced source tree
 - a build that bundles `plugin.js`, generates and self-validates `meta.json`, and writes the `MUST_PLUSH_WITH_PACKAGE` marker
-- an optional author signing step that signs the output when switched on
+- an optional author signing step that writes `.author.sig` files with openssl
 - LF line endings on every output, with minification on by default
 
 The template does not implement any business logic. It only shows the smallest possible interaction between a plugin and the host.
@@ -32,8 +32,7 @@ dsc-plugin-template/
 ├── tsconfig.json
 ├── schemas/
 │   └── runtime/
-│       ├── meta.json         # runtime meta schema
-│       └── plugin_sign.json  # plugin_sign.json schema
+│       └── meta.json         # runtime meta schema
 ├── src/
 │   ├── index.ts              # activation and deactivation entry points
 │   ├── manifest.ts           # runtime manifest
@@ -43,11 +42,11 @@ dsc-plugin-template/
 
 | File | Role |
 |:---:|:---:|
-| `build.mjs` | Build entry: bundle, generate `meta.json`, self-validate, optional signing |
+| `build.mjs` | Build entry: bundle, generate `meta.json`, self-validate, optional author signing |
 | `package.json` | Project metadata and the source of `meta.json` |
 | `src/index.ts` | Activation and deactivation entry points |
 | `src/manifest.ts` | Runtime manifest, still exported by the output |
-| `schemas/runtime/` | The two JSON Schemas used for validation |
+| `schemas/runtime/` | The JSON Schema used for validation |
 | `.env.example` | Environment template |
 
 ## Requirements
@@ -85,22 +84,26 @@ The build clears `dist/` first, then writes:
 
 ```text
 dist/
-├── meta.json                # runtime metadata, generated from package.json
-├── plugin.js                # runtime script, single-file ESM
-├── plugin_sign.json         # author signature, only when enabled
-└── MUST_PLUSH_WITH_PACKAGE  # marker file, empty
+├── meta.json                  # runtime metadata, generated from package.json
+├── plugin.js                  # runtime script, single-file ESM
+├── meta.json.author.sig       # detached author signature for meta.json, only when signing is on
+├── plugin.js.author.sig       # detached author signature for plugin.js, only when signing is on
+├── author_pub.pem             # author public key, only when signing is on, hand it to the collection
+└── MUST_PLUSH_WITH_PACKAGE    # marker file, empty
 ```
 
 | Output | When | Notes |
 |:---:|:---:|:---:|
 | `meta.json` | every build | Validated against `schemas/runtime/meta.json` right after generation; a failure stops the build |
 | `plugin.js` | every build | Single-file ESM exporting `manifest` and `activate` |
-| `plugin_sign.json` | only when signing is enabled | One signature for `meta.json` and one for `plugin.js` |
+| `meta.json.author.sig` | only when signing is enabled | Detached raw-public-key signature for `meta.json`, 64 binary bytes |
+| `plugin.js.author.sig` | only when signing is enabled | Detached raw-public-key signature for `plugin.js`, 64 binary bytes |
+| `author_pub.pem` | only when signing is enabled | Ed25519 public key derived from the private key, handed to the collection |
 | `MUST_PLUSH_WITH_PACKAGE` | every build | Empty file meaning the directory must ship with the package |
 
 Keep the file names as they are, including the `PLUSH` spelling in `MUST_PLUSH_WITH_PACKAGE`.
 
-At the end the build prints the size of every output, the minify switch and the signing state, and checks that `dist/` holds nothing unexpected. Every output is written as LF; a CR byte stops the build.
+At the end the build prints the size of every output, the minify switch and the signing state, and checks that `dist/` holds nothing unexpected. Text outputs (`meta.json`, `plugin.js`, `author_pub.pem`) are written as LF and a CR byte stops the build; `.author.sig` files are binary signatures and are not checked for line endings.
 
 ## How meta.json is generated
 
@@ -133,11 +136,15 @@ When renaming the plugin, update `name` in `package.json`: it must match `dsc-xx
 
 ## Author signing
 
-Signing uses Ed25519 with hash-then-sign: the file bytes are hashed with SHA-512 and the digest is signed, then the base64 result goes into `plugin_sign.json`.
+Author signing is a detached raw-public-key signature: an Ed25519 private key signs the file bytes directly, and the signature sits next to the file with an extra `.author.sig` suffix. Key export, signing and verification all run through `openssl` subprocesses, so the build depends on no JavaScript crypto library.
 
 ```bash
+# once: create the author key pair
+openssl genpkey -algorithm ed25519 -out author_secret.pem
+openssl pkey -in author_secret.pem -pubout -out author_pub.pem
+
 cp .env.example .env
-# edit .env and replace YOURS with a PKCS#8 PEM private key
+# edit .env and replace YOURS with the PKCS#8 PEM of author_secret.pem, or the relative path author_secret.pem
 pnpm run build
 ```
 
@@ -146,22 +153,46 @@ pnpm run build
 | Variable | Value | Notes |
 |:---:|:---:|:---:|
 | `AUTHOR_SIGN_ENABLE` | `true` | Only `true` enables signing, anything else counts as off |
-| `AUTHOR_SIGN_PRIVATE_KEY` | PKCS#8 PEM | The key itself, or a path to a key file |
+| `AUTHOR_SIGN_PRIVATE_KEY` | PKCS#8 PEM | Ed25519 private key, or a path to a key file |
 
-When enabled, `plugin_sign.json` is written:
+When enabled, the build writes one signature for `meta.json` and one for `plugin.js`, equivalent to running:
 
-```json
-{
-  "sign": [
-    { "value": "<base64>", "for": "meta.json", "signer": "omdsc-dev" },
-    { "value": "<base64>", "for": "plugin.js", "signer": "omdsc-dev" }
-  ]
-}
+```bash
+openssl pkeyutl -sign -rawin -inkey author_secret.pem -in dist/meta.json -out dist/meta.json.author.sig
+openssl pkeyutl -sign -rawin -inkey author_secret.pem -in dist/plugin.js -out dist/plugin.js.author.sig
 ```
 
-`signer` comes from `author` in `package.json`. When signing is off, no `plugin_sign.json` is written and the plugin collection adds its own signature. When signing is on but the key is missing, the build fails instead of skipping silently.
+Signatures cover the bytes on disk, with no line-ending normalization. After signing, the build verifies every signature with the public key it derived, and any failure stops the build:
+
+```bash
+openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin.js -sigfile dist/plugin.js.author.sig
+```
+
+Signing also writes `dist/author_pub.pem`, derived from the private key, so there is no need to export it by hand. With signing off, neither that file nor any `.author.sig` is written.
 
 The key may be written on one line with literal `\n` line breaks, or as a relative path to a key file that the build reads.
+
+### Delivering the public key
+
+The author hands the public key to the plugin collection, which keeps it at `plugins/<author>/author_pub.pem` and uses it to verify every `.author.sig` from that author.
+
+| Artifact | Source | Location in the collection |
+|:---:|:---:|:---:|
+| `author_pub.pem` | `dist/author_pub.pem` from the build | `plugins/<author>/author_pub.pem` |
+| `*.author.sig` | `dist/*.author.sig` from the build | next to `meta.json` and `plugin.js` |
+
+The build prints one line at the end reminding the author to hand `dist/author_pub.pem` to the collection.
+
+### Relation to collection signatures
+
+Author signatures and collection signatures are two independent layers, and neither replaces the other:
+
+| Signature | Signer | Artifacts | Trust anchor |
+|:---:|:---:|:---:|:---:|
+| Author | plugin author | `meta.json.author.sig`, `plugin.js.author.sig` | the author key at `plugins/<author>/author_pub.pem` |
+| Collection | plugin collection | `meta.json.sig`, `plugin.js.sig` | the collection certificate `eec.pem` issued by the root CA |
+
+Authors only produce `.author.sig` and `author_pub.pem`. The CMS `*.sig` files are generated by the collection at intake, so do not produce them yourself and do not rename `.author.sig` to `.sig`.
 
 ## Installing the output into DeepSeek-Chat-Enhanced
 
@@ -218,8 +249,8 @@ The template requests `events:session` and `notify`, and subscribes to the singl
 ## Publishing
 
 - Ship the whole `dist/` directory, not just `plugin.js`: `meta.json` is what a market reads to identify the plugin, and `MUST_PLUSH_WITH_PACKAGE` states that the directory must ship as a package.
-- Do not rename the directory layout, the `meta.json` fields or `plugin_sign.json`; markets parse them by schema.
-- When you sign as the author, ship `plugin_sign.json` and put the public key where the plugin collection expects it.
+- Do not rename the directory layout, the `meta.json` fields or the `.author.sig` files; markets and collections parse them by convention.
+- When you sign as the author, ship `meta.json.author.sig`, `plugin.js.author.sig` and `author_pub.pem`, and hand the public key to the collection so it lands at `plugins/<author>/author_pub.pem`.
 - Host the output on a static site or CDN that serves `https` and keep the URL stable; a dead URL shows the installed plugin as failed to start.
 - Before publishing, run `import('https://your-host/plugin.js')` once in the browser console to confirm there is no syntax error and no missing dependency.
 - `dist/` is ignored by `.gitignore`; attach the output to a release when you need to ship it.
@@ -229,7 +260,7 @@ The template requests `events:session` and `notify`, and subscribes to the singl
 
 ### The output has an extra or a missing file
 
-The build clears `dist/` and checks the output list; only `meta.json`, `plugin.js`, `MUST_PLUSH_WITH_PACKAGE` and, when signing is on, `plugin_sign.json` are allowed. Anything else means the source uses dynamic `import()` or pulls in an asset that needs a separate output.
+The build clears `dist/` and checks the output list; only `meta.json`, `plugin.js`, `MUST_PLUSH_WITH_PACKAGE` and, when author signing is on, `meta.json.author.sig`, `plugin.js.author.sig` and `author_pub.pem` are allowed. Anything else means the source uses dynamic `import()` or pulls in an asset that needs a separate output.
 
 ### meta.json fails validation
 
@@ -237,7 +268,9 @@ The build validates against `schemas/runtime/meta.json` and names the failing fi
 
 ### No signature is produced
 
-`AUTHOR_SIGN_ENABLE` accepts only `true`; `1`, `yes` or a quoted value counts as off. When signing is on and `AUTHOR_SIGN_PRIVATE_KEY` is missing or not an Ed25519 key, the build fails and prints the reason.
+`AUTHOR_SIGN_ENABLE` accepts only `true`; `1`, `yes` or a quoted value counts as off. When signing is on and `AUTHOR_SIGN_PRIVATE_KEY` is missing, is not PKCS#8 PEM, or is not an Ed25519 key, the build fails and prints the reason.
+
+A signature that fails verification usually means a file was re-saved between signing and delivery: CRLF against LF alone is enough to break it.
 
 ### Missing manifest
 
