@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://omdsc-dev.github.io/dsc-plugin-template/schemas/runtime/meta.json",
+  "title": "dsc-plugin-runtime-meta",
+  "description": "DSC 插件运行时元数据文件",
+  "type": "object",
+  "properties": {
+    "name": {
+      "$ref": "#/$defs/npmPluginName"
+    },
+    "version": {
+      "$ref": "#/$defs/version"
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1,
+      "description": "许可证标识,建议使用 SPDX 标识符,如 MIT、Apache-2.0"
+    },
+    "description": {
+      "$ref": "#/$defs/i18nDescription"
+    },
+    "author": {
+      "type": "string",
+      "minLength": 1
+    },
+    "home_page": {
+      "$ref": "#/$defs/link"
+    },
+    "repo_link": {
+      "$ref": "#/$defs/link"
+    },
+    "dependencies": {
+      "type": "object",
+      "properties": {
+        "dsc": {
+          "$ref": "#/$defs/versionRange"
+        }
+      },
+      "required": [
+        "dsc"
+      ],
+      "additionalProperties": false
+    },
+    "attached": {
+      "type": "object",
+      "description": "可选附加资源。整个字段可缺省;内部子字段可单独缺省;允许空对象 {},语义由使用者兜底。",
+      "properties": {
+        "favicon": {
+          "$ref": "#/$defs/link",
+          "description": "站点图标链接,可选"
+        },
+        "intro_image": {
+          "type": "array",
+          "description": "介绍图片链接列表,可选;允许空数组 [],语义由使用者兜底。",
+          "items": {
+            "$ref": "#/$defs/link"
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "name",
+    "version",
+    "license",
+    "description",
+    "author",
+    "repo_link",
+    "dependencies"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "npmPluginName": {
+      "type": "string",
+      "maxLength": 214,
+      "pattern": "^(?:dsc-[a-z0-9][a-z0-9._-]*|@[a-z0-9][a-z0-9._-]*/dsc-[a-z0-9][a-z0-9._-]*)$",
+      "description": "npm 包名,即插件名。全局包为 dsc-xxx;用户命名空间包为 @scope/dsc-xxx。仅允许小写字母、数字、点、下划线、连字符;scope 和包名均不能以点或下划线开头。",
+      "examples": [
+        "dsc-demo",
+        "dsc-plugin-runtime",
+        "@alice/dsc-demo",
+        "@my-org/dsc-plugin-runtime"
+      ]
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+      "description": "语义化版本号,格式 x.y.z",
+      "examples": [
+        "1.0.0",
+        "0.2.13"
+      ]
+    },
+    "versionRange": {
+      "type": "string",
+      "minLength": 1,
+      "description": "semver range 表达式,如 ^1.0.0、~1.2.3、>=1.0.0 <2.0.0、*",
+      "examples": [
+        "^1.0.0",
+        ">=2.1.0 <3.0.0"
+      ]
+    },
+    "link": {
+      "type": "string",
+      "format": "uri",
+      "minLength": 1,
+      "description": "合法的 URI/URL"
+    },
+    "i18nDescription": {
+      "type": "object",
+      "properties": {
+        "zh-CN": {
+          "type": "string",
+          "minLength": 1
+        },
+        "en-US": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "zh-CN"
+          ]
+        },
+        {
+          "required": [
+            "en-US"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

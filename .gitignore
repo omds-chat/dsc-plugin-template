@@ -6,3 +6,6 @@ temp/
 AGENTS.md
 .agent/
 .agents/
+.env
+.env.local
+!.env.example

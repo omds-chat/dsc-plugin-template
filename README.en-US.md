@@ -2,48 +2,53 @@
 
 [简体中文](README.md) | [English]
 
-A template for dsc plugins: source in TypeScript, bundled by esbuild into a single browser ESM file that can be installed into dsc by URL.
+A template for dsc plugins: source in TypeScript, bundled by esbuild into a single browser ESM file. The build also writes the runtime metadata, optionally signs it, and the output can be installed into dsc by URL.
 
-## Purpose
+## What you get
 
-This template is a minimal project that already runs, and it contains:
-
-- a working plugin manifest and lifecycle entry points
+- a minimal plugin that already runs: manifest, activate, deactivate
 - a local copy of the contract types, so type hints work without the DeepSeek-Chat-Enhanced source tree
-- a TypeScript and esbuild setup whose output is always a single file
+- a build that bundles `plugin.js`, generates and self-validates `meta.json`, and writes the `MUST_PLUSH_WITH_PACKAGE` marker
+- an optional author signing step that signs the output when switched on
+- LF line endings on every output, with minification on by default
 
-The template does not implement any business logic. It only shows the smallest possible interaction between a plugin and the host: subscribing to session switches, writing plugin logs, and showing one host notice through an existing message key.
+The template does not implement any business logic. It only shows the smallest possible interaction between a plugin and the host.
 
 ## Project layout
 
-```
+```text
 dsc-plugin-template/
+├── .env.example              # environment template, copy to .env and fill in the key
+├── .gitattributes            # repository-wide LF
 ├── .gitignore
 ├── .npmrc
 ├── LICENSE
-├── README.md
-├── README.en-US.md
-├── build.mjs
-├── package.json
+├── README.md                 # for developers, maintained by the plugin author
+├── README.user.md            # for end users, maintained by the plugin author
+├── build.mjs                 # build entry
+├── package.json              # project metadata, the source of meta.json
 ├── pnpm-lock.yaml
 ├── pnpm-workspace.yaml
 ├── tsconfig.json
-└── src/
-    ├── index.ts
-    ├── manifest.ts
-    └── types.ts
+├── schemas/
+│   └── runtime/
+│       ├── meta.json         # runtime meta schema
+│       └── plugin_sign.json  # plugin_sign.json schema
+├── src/
+│   ├── index.ts              # activation and deactivation entry points
+│   ├── manifest.ts           # runtime manifest
+│   └── types.ts              # contract types
+└── dist/                     # build output, ignored by .gitignore
 ```
 
 | File | Role |
 |:---:|:---:|
-| `package.json` | Project metadata, scripts and dev dependencies |
-| `pnpm-lock.yaml` | Dependency lockfile written by `pnpm install`, recommended to commit |
-| `pnpm-workspace.yaml` | pnpm 12 settings file, allows the esbuild install script |
-| `build.mjs` | esbuild script, writes `dist/plugin.js` |
-| `tsconfig.json` | TypeScript strict configuration, type check only, no output |
-| `src/manifest.ts` | Plugin manifest |
+| `build.mjs` | Build entry: bundle, generate `meta.json`, self-validate, optional signing |
+| `package.json` | Project metadata and the source of `meta.json` |
 | `src/index.ts` | Activation and deactivation entry points |
-| `src/types.ts` | Trimmed local copy of the plugin contract types |
+| `src/manifest.ts` | Runtime manifest, still exported by the output |
+| `schemas/runtime/` | The two JSON Schemas used for validation |
+| `.env.example` | Environment template |
 
 ## Requirements
 
@@ -65,27 +70,112 @@ pnpm run type
 pnpm run build
 ```
 
-The output is `dist/plugin.js`. The build script clears `dist/` first, then checks that exactly one js file exists and prints the output path and size.
-
 | Command | Role |
 |:---:|:---:|
 | `pnpm install` | Install dev dependencies |
 | `pnpm run type` | Run `tsc --noEmit` for a type check |
-| `pnpm run build` | Bundle the plugin and print path and size |
+| `pnpm run build` | Build every output |
+| `pnpm run build -- --no-minify` | Build without minification |
+
+`build.mjs` takes one flag, `--no-minify`, which turns esbuild minification off. The minified output is much smaller, so keep the default when distributing.
+
+## Build output
+
+The build clears `dist/` first, then writes:
+
+```text
+dist/
+├── meta.json                # runtime metadata, generated from package.json
+├── plugin.js                # runtime script, single-file ESM
+├── plugin_sign.json         # author signature, only when enabled
+└── MUST_PLUSH_WITH_PACKAGE  # marker file, empty
+```
+
+| Output | When | Notes |
+|:---:|:---:|:---:|
+| `meta.json` | every build | Validated against `schemas/runtime/meta.json` right after generation; a failure stops the build |
+| `plugin.js` | every build | Single-file ESM exporting `manifest` and `activate` |
+| `plugin_sign.json` | only when signing is enabled | One signature for `meta.json` and one for `plugin.js` |
+| `MUST_PLUSH_WITH_PACKAGE` | every build | Empty file meaning the directory must ship with the package |
+
+Keep the file names as they are, including the `PLUSH` spelling in `MUST_PLUSH_WITH_PACKAGE`.
+
+At the end the build prints the size of every output, the minify switch and the signing state, and checks that `dist/` holds nothing unexpected. Every output is written as LF; a CR byte stops the build.
+
+## How meta.json is generated
+
+`meta.json` is generated from `package.json` and is never edited by hand.
+
+| `meta.json` field | Source | Required |
+|:---:|:---:|:---:|
+| `name` | `name` in `package.json` | yes |
+| `version` | `version` in `package.json` | yes |
+| `license` | `license` in `package.json` | yes |
+| `author` | `author` in `package.json`, as a string | yes |
+| `description` | `dsc.description`, at least `zh-CN` or `en-US` | yes |
+| `repo_link` | `dsc.repo_link` | yes |
+| `dependencies.dsc` | `dsc.engines` | yes |
+| `home_page` | `dsc.home_page`, omitted when absent | no |
+| `attached` | `dsc.attached`, omitted when absent | no |
+
+The `dsc` block in `package.json`:
+
+```json
+"dsc": {
+  "engines": "^1.0.0",
+  "description": { "zh-CN": "Demo plugin", "en-US": "Demo plugin" },
+  "home_page": "https://github.com/omdsc-dev/dsc-plugin-template",
+  "repo_link": "https://github.com/omdsc-dev/dsc-plugin-template"
+}
+```
+
+When renaming the plugin, update `name` in `package.json`: it must match `dsc-xxx` or `@scope/dsc-xxx`, otherwise `meta.json` fails validation. When bumping the version, update `version` with three numeric segments.
+
+## Author signing
+
+Signing uses Ed25519 with hash-then-sign: the file bytes are hashed with SHA-512 and the digest is signed, then the base64 result goes into `plugin_sign.json`.
+
+```bash
+cp .env.example .env
+# edit .env and replace YOURS with a PKCS#8 PEM private key
+pnpm run build
+```
+
+`build.mjs` reads `.env` from the repository root; variables already present in the environment win, so passing them on the command line also works.
+
+| Variable | Value | Notes |
+|:---:|:---:|:---:|
+| `AUTHOR_SIGN_ENABLE` | `true` | Only `true` enables signing, anything else counts as off |
+| `AUTHOR_SIGN_PRIVATE_KEY` | PKCS#8 PEM | The key itself, or a path to a key file |
+
+When enabled, `plugin_sign.json` is written:
+
+```json
+{
+  "sign": [
+    { "value": "<base64>", "for": "meta.json", "signer": "omdsc-dev" },
+    { "value": "<base64>", "for": "plugin.js", "signer": "omdsc-dev" }
+  ]
+}
+```
+
+`signer` comes from `author` in `package.json`. When signing is off, no `plugin_sign.json` is written and the plugin collection adds its own signature. When signing is on but the key is missing, the build fails instead of skipping silently.
+
+The key may be written on one line with literal `\n` line breaks, or as a relative path to a key file that the build reads.
 
 ## Installing the output into DeepSeek-Chat-Enhanced
 
-1. Serve `dist/plugin.js` from a local static server, for example `http://localhost:8090/plugin.js`.
+1. Serve the `dist/` directory from a local static server, for example `http://localhost:8090/`.
 2. Open the plugin panel with the plugin button at the bottom of the sidebar.
-3. Paste the output URL into the install-from-URL field at the bottom of the panel, then click install.
-4. The plugin activates right after a successful install, and its status in the installed list shows as running.
+3. Paste the `plugin.js` URL into the install-from-URL field, then click install.
+4. The plugin activates right after a successful install, and its status shows as running.
 5. Open the plugin log to see what `context.log` wrote; every session switch appends one line.
 
 URL rules: use an `https://` URL when distributing. For local debugging DeepSeek-Chat-Enhanced accepts `http://localhost`, `http://127.0.0.1` and `http://[::1]`; every other address must use `https://`.
 
 After changing the output, uninstall the plugin in the panel and install it again, because the browser caches the module for a given URL.
 
-Deployment requirement: the output is loaded as an ES module through `import()`, and browsers enforce CORS on cross-origin module imports. The host must therefore return an `Access-Control-Allow-Origin` header, for example `Access-Control-Allow-Origin: *`; otherwise installing fails when the output is served from a different origin (different domain, port or protocol). Serving the output from the same domain as the page needs no such header.
+Deployment requirement: the output is loaded as an ES module through `import()`, and browsers enforce CORS on cross-origin module imports. The host must therefore return an `Access-Control-Allow-Origin` header, for example `Access-Control-Allow-Origin: *`; otherwise installing fails when the output is served from a different origin. Serving the output from the same domain as the page needs no such header.
 
 ## Editing the manifest
 
@@ -125,20 +215,29 @@ Things to keep in mind:
 
 The template requests `events:session` and `notify`, and subscribes to the single contribution point `session:changed`.
 
-## Release and distribution
+## Publishing
 
-- Put the plugin id and version into the output file name, for example `dsc-demo-log-0.1.0.js`, so users can tell versions apart.
+- Ship the whole `dist/` directory, not just `plugin.js`: `meta.json` is what a market reads to identify the plugin, and `MUST_PLUSH_WITH_PACKAGE` states that the directory must ship as a package.
+- Do not rename the directory layout, the `meta.json` fields or `plugin_sign.json`; markets parse them by schema.
+- When you sign as the author, ship `plugin_sign.json` and put the public key where the plugin collection expects it.
 - Host the output on a static site or CDN that serves `https` and keep the URL stable; a dead URL shows the installed plugin as failed to start.
-- Before publishing, run `import('https://your-host/dsc-demo-log-0.1.0.js')` once in the browser console to confirm there is no syntax error and no missing dependency.
-- `dist/` is generated by the build and ignored by `.gitignore`; attach the output to a release when you need to ship it.
+- Before publishing, run `import('https://your-host/plugin.js')` once in the browser console to confirm there is no syntax error and no missing dependency.
+- `dist/` is ignored by `.gitignore`; attach the output to a release when you need to ship it.
 - Plugins run in the user browser and can reach the API key and the current conversation, so any distribution must tell users to install only plugins from sources they trust.
-- When submitting to a plugin market, the output must still export `manifest`, or the market index entry must carry the manifest inline.
 
 ## FAQ
 
-### The output is not a single file
+### The output has an extra or a missing file
 
-`build.mjs` disables code splitting, clears `dist/`, and verifies afterwards that `plugin.js` is the only file. If extra files appear, check for dynamic `import()` calls or for assets that need a separate output.
+The build clears `dist/` and checks the output list; only `meta.json`, `plugin.js`, `MUST_PLUSH_WITH_PACKAGE` and, when signing is on, `plugin_sign.json` are allowed. Anything else means the source uses dynamic `import()` or pulls in an asset that needs a separate output.
+
+### meta.json fails validation
+
+The build validates against `schemas/runtime/meta.json` and names the failing field. Common causes are a `name` in `package.json` that does not match `dsc-xxx`, a `version` without three numeric segments, a `dsc` block missing `engines` or `repo_link`, or an `author` written as an object.
+
+### No signature is produced
+
+`AUTHOR_SIGN_ENABLE` accepts only `true`; `1`, `yes` or a quoted value counts as off. When signing is on and `AUTHOR_SIGN_PRIVATE_KEY` is missing or not an Ed25519 key, the build fails and prints the reason.
 
 ### Missing manifest
 

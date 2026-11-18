@@ -2,48 +2,53 @@
 
 [简体中文] | [English](README.en-US.md)
 
-dsc 插件开发模板：用 TypeScript 编写源码,用 esbuild 打包成单个浏览器 ESM 文件,产物可以直接在 dsc 中从地址安装。
+dsc 插件开发模板:用 TypeScript 写源码,用 esbuild 打包成单个浏览器 ESM 文件。构建同时产出运行时元数据,可选地产出作者自签名,产物可以直接在 dsc 中从地址安装。
 
-## 模板用途
+## 模板给你什么
 
-本模板提供一个能直接跑通的最小插件工程,包含：
+- 一份能跑通的最小插件:清单、激活、停用
+- 一份契约类型的本地副本,脱离 DeepSeek-Chat-Enhanced 源码也有类型提示
+- 一套构建流程:打包 `plugin.js`、生成并自校验 `meta.json`、写入 `MUST_PLUSH_WITH_PACKAGE` 标记
+- 一条可选的作者自签名链路:打开开关后自动对产物签名
+- 所有产物强制 LF 换行,`plugin.js` 默认行压缩
 
-- 一份可运行的插件清单与生命周期入口
-- 一份契约类型的本地副本,脱离 DeepSeek-Chat-Enhanced 源码也能获得类型提示
-- 一套 TypeScript 与 esbuild 的构建配置,产物固定为单文件
-
-模板本身不做业务,只演示插件与宿主之间的最小交互：订阅会话切换事件、写插件日志、用宿主文案键提示一次。
+模板本身不做业务,只演示插件与宿主之间的最小交互:订阅会话切换事件、写插件日志、用宿主文案键提示一次。
 
 ## 目录结构
 
-```
+```text
 dsc-plugin-template/
+├── .env.example              # 环境变量模板,复制为 .env 后填私钥
+├── .gitattributes            # 全仓库统一 LF
 ├── .gitignore
 ├── .npmrc
 ├── LICENSE
-├── README.md
-├── README.en-US.md
-├── build.mjs
-├── package.json
+├── README.md                 # 面向开发者,由插件作者维护
+├── README.user.md            # 面向普通用户,由插件作者维护
+├── build.mjs                 # 构建入口
+├── package.json              # 工程信息,meta.json 的数据来源
 ├── pnpm-lock.yaml
 ├── pnpm-workspace.yaml
 ├── tsconfig.json
-└── src/
-    ├── index.ts
-    ├── manifest.ts
-    └── types.ts
+├── schemas/
+│   └── runtime/
+│       ├── meta.json         # runtime meta schema
+│       └── plugin_sign.json  # plugin_sign.json schema
+├── src/
+│   ├── index.ts              # 激活与停用入口
+│   ├── manifest.ts           # 运行时清单
+│   └── types.ts              # 契约类型
+└── dist/                     # 构建产物,已被 .gitignore 忽略
 ```
 
 | 文件 | 作用 |
 |:---:|:---:|
-| `package.json` | 工程信息、脚本与开发依赖 |
-| `pnpm-lock.yaml` | `pnpm install` 生成的依赖锁定文件,建议随仓库提交 |
-| `pnpm-workspace.yaml` | pnpm 12 的设置文件,声明允许 esbuild 执行安装脚本 |
-| `build.mjs` | esbuild 打包脚本,输出 `dist/plugin.js` |
-| `tsconfig.json` | TypeScript 严格模式配置,只做类型检查不产出文件 |
-| `src/manifest.ts` | 插件清单 |
+| `build.mjs` | 构建入口:打包、生成 `meta.json`、自校验、可选签名 |
+| `package.json` | 工程信息与 `meta.json` 的数据来源 |
 | `src/index.ts` | 激活与停用入口 |
-| `src/types.ts` | 插件契约的精简类型声明 |
+| `src/manifest.ts` | 插件运行时清单,产物继续导出 |
+| `schemas/runtime/` | 两份 JSON Schema,校验依据 |
+| `.env.example` | 环境变量模板 |
 
 ## 环境要求
 
@@ -53,7 +58,7 @@ dsc-plugin-template/
 | pnpm | 12 或更高版本 |
 | 产物目标浏览器 | Chrome 105、Edge 105、Safari 16、Firefox 110 |
 
-pnpm 12 默认不执行依赖的安装脚本,仓库里的 pnpm-workspace.yaml 通过 allowBuilds 显式允许 esbuild 的构建脚本,请不要删除这个文件。
+pnpm 12 默认不执行依赖的安装脚本,仓库里的 `pnpm-workspace.yaml` 通过 `allowBuilds` 显式允许 esbuild 的构建脚本,请不要删除这个文件。
 
 ## 快速开始
 
@@ -65,27 +70,112 @@ pnpm run type
 pnpm run build
 ```
 
-产物为 `dist/plugin.js`。构建脚本会先清空 `dist/`,打包后校验其中只有一个 js 文件,并打印产物路径与体积。
-
 | 命令 | 作用 |
 |:---:|:---:|
 | `pnpm install` | 安装开发依赖 |
 | `pnpm run type` | 运行 `tsc --noEmit` 做类型检查 |
-| `pnpm run build` | 打包产物并打印路径与体积 |
+| `pnpm run build` | 构建全部产物 |
+| `pnpm run build -- --no-minify` | 关闭行压缩后再构建 |
 
-## 如何把产物装进 DeepSeek-Chat-Enhanced
+`build.mjs` 支持 `--no-minify` 一个参数,关闭 esbuild 的行压缩。压缩后的产物体积明显更小,分发时建议保持默认压缩。
 
-1. 用本机静态服务器提供 `dist/plugin.js`,例如 `http://localhost:8090/plugin.js`。
+## 构建产物
+
+构建先清空 `dist/`,再依次产出以下文件:
+
+```text
+dist/
+├── meta.json                # 运行时元数据,从 package.json 生成
+├── plugin.js                # 运行时脚本,单文件 ESM
+├── plugin_sign.json         # 作者自签名,仅在启用时产出
+└── MUST_PLUSH_WITH_PACKAGE  # 标记文件,内容为空
+```
+
+| 产物 | 何时产出 | 说明 |
+|:---:|:---:|:---:|
+| `meta.json` | 每次构建 | 生成后立即按 `schemas/runtime/meta.json` 自校验,不通过则构建失败 |
+| `plugin.js` | 每次构建 | 单文件 ESM,导出 `manifest` 与 `activate` |
+| `plugin_sign.json` | 仅启用自签名时 | 对 `meta.json` 与 `plugin.js` 各一条签名 |
+| `MUST_PLUSH_WITH_PACKAGE` | 每次构建 | 空文件,表示该目录内容必须随包分发 |
+
+文件名按约定原样保留,`MUST_PLUSH_WITH_PACKAGE` 的拼写不要改成 `PUSH`。
+
+构建结束时脚本会打印每个产物的大小、压缩开关、签名状态,并检查 `dist/` 里没有预期之外的文件。所有产物按 LF 落盘,若检测到 CR 字节直接报错。
+
+## meta.json 生成规则
+
+`meta.json` 由 `package.json` 生成,不手工维护。
+
+| `meta.json` 字段 | 来源 | 必填 |
+|:---:|:---:|:---:|
+| `name` | `package.json` 的 `name` | 是 |
+| `version` | `package.json` 的 `version` | 是 |
+| `license` | `package.json` 的 `license` | 是 |
+| `author` | `package.json` 的 `author`,字符串形式 | 是 |
+| `description` | `dsc.description`,对象,至少含 `zh-CN` 或 `en-US` | 是 |
+| `repo_link` | `dsc.repo_link` | 是 |
+| `dependencies.dsc` | `dsc.engines` | 是 |
+| `home_page` | `dsc.home_page`,缺省则不写 | 否 |
+| `attached` | `dsc.attached`,缺省则不写 | 否 |
+
+`package.json` 里的 `dsc` 块:
+
+```json
+"dsc": {
+  "engines": "^1.0.0",
+  "description": { "zh-CN": "示例插件", "en-US": "Demo plugin" },
+  "home_page": "https://github.com/omdsc-dev/dsc-plugin-template",
+  "repo_link": "https://github.com/omdsc-dev/dsc-plugin-template"
+}
+```
+
+改插件名时同步改 `package.json` 的 `name`:它必须匹配 `dsc-xxx` 或 `@scope/dsc-xxx`,否则 `meta.json` 校验失败。改版本时同步改 `version`,只允许 `x.y.z` 三段数字。
+
+## 作者自签名
+
+签名使用 Ed25519,流程是 hash-then-sign:先对文件字节做 SHA-512 摘要,再对摘要签名,结果以 base64 写入 `plugin_sign.json`。
+
+```bash
+cp .env.example .env
+# 编辑 .env,把 YOURS 换成 PKCS#8 PEM 私钥
+pnpm run build
+```
+
+`build.mjs` 启动时读取仓库根目录的 `.env`,已存在的环境变量优先,因此也可以直接在命令行传入。
+
+| 环境变量 | 取值 | 说明 |
+|:---:|:---:|:---:|
+| `AUTHOR_SIGN_ENABLE` | `true` | 只有 `true` 才启用自签名,其他取值视为关闭 |
+| `AUTHOR_SIGN_PRIVATE_KEY` | PKCS#8 PEM | 私钥内容,也接受私钥文件路径 |
+
+启用后产出 `plugin_sign.json`:
+
+```json
+{
+  "sign": [
+    { "value": "<base64>", "for": "meta.json", "signer": "omdsc-dev" },
+    { "value": "<base64>", "for": "plugin.js", "signer": "omdsc-dev" }
+  ]
+}
+```
+
+`signer` 取 `package.json` 的 `author`。未启用时不产出 `plugin_sign.json`,插件合集会在收录时补上合集签名。启用但私钥缺失时构建直接失败,不会静默跳过。
+
+私钥可以写成一行,把换行写成字面量 `\n`,也可以只写私钥文件的相对路径,构建脚本会读取文件内容。
+
+## 把产物装进 DeepSeek-Chat-Enhanced
+
+1. 用本机静态服务器提供 `dist/` 目录,例如 `http://localhost:8090/`。
 2. 点击侧边栏底部的「插件」按钮,打开插件面板。
-3. 在面板底部的「从地址安装」输入框中粘贴产物地址,点击「安装」。
+3. 在面板底部的「从地址安装」输入框中粘贴 `plugin.js` 的地址,点击「安装」。
 4. 安装成功后插件自动激活,「已安装」中的状态显示为「运行中」。
 5. 点击「查看日志」可以看到 `context.log` 写入的内容,切换会话后日志会追加一条。
 
-地址规则：分发给用户时使用 `https://` 地址。本机调试时 DeepSeek-Chat-Enhanced 允许 `http://localhost`、`http://127.0.0.1` 与 `http://[::1]`,其余地址必须是 `https://`。
+地址规则:分发给用户时使用 `https://` 地址。本机调试时 DeepSeek-Chat-Enhanced 允许 `http://localhost`、`http://127.0.0.1` 与 `http://[::1]`,其余地址必须是 `https://`。
 
 产物改动后需要先在面板卸载再重新安装,同一地址的模块会被浏览器缓存。
 
-部署要求：产物以 ES 模块的形式通过 `import()` 加载,浏览器对跨源模块导入强制校验 CORS。因此托管方必须返回 `Access-Control-Allow-Origin` 响应头(例如 `Access-Control-Allow-Origin: *`),否则插件产物托管在另一个源(不同域名、端口或协议)时安装会失败。把产物与页面放在同一域名下同源部署,则不需要该响应头。
+部署要求:产物以 ES 模块的形式通过 `import()` 加载,浏览器对跨源模块导入强制校验 CORS。因此托管方必须返回 `Access-Control-Allow-Origin` 响应头,例如 `Access-Control-Allow-Origin: *`,否则插件产物托管在另一个源时安装会失败。把产物与页面放在同一域名下同源部署,则不需要该响应头。
 
 ## 如何改 manifest
 
@@ -102,10 +192,10 @@ pnpm run build
 | `capabilities` | 是 | 申请的能力,不得重复 |
 | `contributions` | 否 | 订阅的贡献点,当前只有 `session:changed` |
 
-改清单时的注意事项：
+改清单时的注意事项:
 
 - `id` 全局唯一,重复安装会被拒绝。
-- `version` 是插件版本,与模板 `package.json` 中的版本无关。
+- `version` 是插件版本,与 `package.json` 中的版本无关。
 - `capabilities` 只写能力表内的名字,未知或重复的能力会让安装被拒绝。
 - 契约速查见组织内的 `.agents/dsc-plugin-contract.md`,若与 DeepSeek-Chat-Enhanced 源码冲突以源码为准。
 
@@ -125,20 +215,29 @@ pnpm run build
 
 模板默认申请 `events:session` 与 `notify` 两项能力,只订阅 `session:changed` 一个贡献点。
 
-## 发布与分发建议
+## 发布
 
-- 产物文件名带上插件 id 与版本号,例如 `dsc-demo-log-0.1.0.js`,便于用户区分版本。
+- 交付 `dist/` 整个目录,不要只交付 `plugin.js`:`meta.json` 是市场识别插件的依据,`MUST_PLUSH_WITH_PACKAGE` 表明该目录必须随包分发。
+- 目录结构、`meta.json` 与 `plugin_sign.json` 都不要改动字段名与文件名,市场按 schema 解析。
+- 需要作者自签名时,连同 `plugin_sign.json` 一起交付,并把公钥放到插件合集约定的位置。
 - 产物托管在支持 `https` 的静态站点或 CDN 上,保持地址稳定;地址失效会让已安装插件显示为「启动失败」。
-- 发布前在浏览器控制台执行一次 `import('https://你的地址/dsc-demo-log-0.1.0.js')`,确认没有语法错误与缺失依赖。
-- `dist/` 由构建产生并已在 `.gitignore` 中忽略,需要交付产物时在 Release 中附带。
+- 发布前在浏览器控制台执行一次 `import('https://你的地址/plugin.js')`,确认没有语法错误与缺失依赖。
+- `dist/` 已被 `.gitignore` 忽略,需要交付产物时在 Release 中附带。
 - 插件运行在用户浏览器中,可以接触 API Key 与当前会话内容,分发时必须提示用户只安装信任来源的插件。
-- 收录到插件市场时,产物仍须导出 `manifest`,或由市场索引条目内联清单。
 
 ## 常见问题
 
-### 产物不是单文件
+### 产物多出或少了一个文件
 
-`build.mjs` 已关闭代码分割、清空 `dist/`,并在打包后校验其中只有 `plugin.js`。若仍出现额外文件,检查源码里是否用了动态 `import()`,或引入了需要单独输出的资源。
+构建脚本会清空 `dist/` 并校验产物清单,只允许 `meta.json`、`plugin.js`、`MUST_PLUSH_WITH_PACKAGE` 与启用签名时的 `plugin_sign.json`。出现其他文件说明源码用了动态 `import()` 或引入了需要单独输出的资源。
+
+### meta.json 校验失败
+
+构建脚本按 `schemas/runtime/meta.json` 自校验,报错会指出具体字段。常见原因是 `package.json` 的 `name` 不匹配 `dsc-xxx`、`version` 不是三段数字、`dsc` 块缺少 `engines` 或 `repo_link`,或 `author` 写成了对象。
+
+### 签名没有产出
+
+`AUTHOR_SIGN_ENABLE` 只认 `true`,写成 `1`、`yes` 或带引号的其他值都会视为关闭。启用后如果 `AUTHOR_SIGN_PRIVATE_KEY` 缺失或不是 Ed25519 私钥,构建会直接失败并打印原因。
 
 ### 清单缺失
 
@@ -150,7 +249,7 @@ pnpm run build
 
 ### 从地址安装失败
 
-先确认产物地址本身可访问：在新标签页直接打开该地址,应当返回脚本内容而不是 404、错误页或登录跳转。再确认 CORS：产物按 ES 模块通过 `import()` 加载,跨源托管必须返回 `Access-Control-Allow-Origin`;缺少该响应头时浏览器会在控制台报 CORS 错误并中断安装。把产物与页面放在同一域名下同源部署可以避开这一限制。
+先确认产物地址本身可访问:在新标签页直接打开该地址,应当返回脚本内容而不是 404、错误页或登录跳转。再确认 CORS:产物按 ES 模块通过 `import()` 加载,跨源托管必须返回 `Access-Control-Allow-Origin`;缺少该响应头时浏览器会在控制台报 CORS 错误并中断安装。把产物与页面放在同一域名下同源部署可以避开这一限制。
 
 ## 许可证
 
