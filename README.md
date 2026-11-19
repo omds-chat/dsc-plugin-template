@@ -9,7 +9,7 @@ dsc 插件开发模板:用 TypeScript 写源码,用 esbuild 打包成单个浏�
 - 一份能跑通的最小插件:清单、激活、停用
 - 一份契约类型的本地副本,脱离 DeepSeek-Chat-Enhanced 源码也有类型提示
 - 一套构建流程:打包 `plugin.js`、生成并自校验 `meta.json`、写入 `MUST_PLUSH_WITH_PACKAGE` 标记
-- 一条可选的作者签名链路:打开开关后用 openssl 对产物生成 `.author.sig`
+- 一条可选的作者签名链路:打开开关后用 openssl 对 `plugin.js` 生成 `.author.sig`
 - 文本产物强制 LF 换行,`plugin.js` 默认行压缩
 
 模板本身不做业务,只演示插件与宿主之间的最小交互:订阅会话切换事件、写插件日志、用宿主文案键提示一次。
@@ -87,7 +87,6 @@ pnpm run build
 dist/
 ├── meta.json                  # 运行时元数据,从 package.json 生成
 ├── plugin.js                  # 运行时脚本,单文件 ESM
-├── meta.json.author.sig       # meta.json 的作者分离签名,仅在启用作者签名时产出
 ├── plugin.js.author.sig       # plugin.js 的作者分离签名,仅在启用作者签名时产出
 ├── author_pub.pem             # 作者公钥,仅在启用作者签名时产出,交给合集
 └── MUST_PLUSH_WITH_PACKAGE    # 标记文件,内容为空
@@ -97,7 +96,6 @@ dist/
 |:---:|:---:|:---:|
 | `meta.json` | 每次构建 | 生成后立即按 `schemas/runtime/meta.json` 的规则自校验,不通过则构建失败 |
 | `plugin.js` | 每次构建 | 单文件 ESM,导出 `manifest` 与 `activate` |
-| `meta.json.author.sig` | 仅启用作者签名时 | `meta.json` 的裸公钥分离签名,64 字节二进制 |
 | `plugin.js.author.sig` | 仅启用作者签名时 | `plugin.js` 的裸公钥分离签名,64 字节二进制 |
 | `author_pub.pem` | 仅启用作者签名时 | 由私钥推导出的 Ed25519 公钥,交给插件合集 |
 | `MUST_PLUSH_WITH_PACKAGE` | 每次构建 | 空文件,表示该目录内容必须随包分发 |
@@ -139,6 +137,8 @@ dist/
 
 作者签名是裸公钥分离签名:Ed25519 私钥直接对文件原始字节签名,签名文件与被签名文件同名,追加 `.author.sig` 后缀。生成公钥、签名、验签全部交给 `openssl` 子进程完成,构建脚本不依赖任何 JS 密码库。
 
+作者签名的覆盖范围只有 `plugin.js`。作者对 `meta.json` 的签名已经取消,构建不再产出 `meta.json.author.sig`:合集侧改用三层哈希清单覆盖 `meta.json` 的完整性,作者签名不再参与该文件的校验,合集也不再接受 `meta.json.author.sig`。
+
 ```bash
 # 一次性:生成作者密钥对
 openssl genpkey -algorithm ed25519 -out author_secret.pem
@@ -156,10 +156,9 @@ pnpm run build
 | `AUTHOR_SIGN_ENABLE` | `true` | 只有 `true` 才启用作者签名(忽略大小写与首尾空格),其他取值视为关闭 |
 | `AUTHOR_SIGN_PRIVATE_KEY` | PKCS#8 PEM | Ed25519 私钥内容,也接受私钥文件路径 |
 
-启用后,构建对 `meta.json` 与 `plugin.js` 各生成一条签名,等价于手工执行:
+启用后,构建只对 `plugin.js` 生成一条签名,等价于手工执行:
 
 ```bash
-openssl pkeyutl -sign -rawin -inkey author_secret.pem -in dist/meta.json -out dist/meta.json.author.sig
 openssl pkeyutl -sign -rawin -inkey author_secret.pem -in dist/plugin.js -out dist/plugin.js.author.sig
 ```
 
@@ -180,7 +179,7 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 | 交付物 | 来源 | 合集侧位置 |
 |:---:|:---:|:---:|
 | `author_pub.pem` | 构建产出的 `dist/author_pub.pem` | `plugins/<作者>/author_pub.pem` |
-| `*.author.sig` | 构建产出的 `dist/*.author.sig` | 与 `meta.json`、`plugin.js` 同目录 |
+| `plugin.js.author.sig` | 构建产出的 `dist/plugin.js.author.sig` | 与 `plugin.js` 同目录 |
 
 构建结束时会打印一行提示,提醒作者把 `dist/author_pub.pem` 交给合集。
 
@@ -190,7 +189,7 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 
 | 签名 | 签名者 | 产物 | 信任来源 |
 |:---:|:---:|:---:|:---:|
-| 作者签名 | 插件作者 | `meta.json.author.sig`、`plugin.js.author.sig` | 作者公钥 `plugins/<作者>/author_pub.pem` |
+| 作者签名 | 插件作者 | `plugin.js.author.sig` | 作者公钥 `plugins/<作者>/author_pub.pem` |
 | 合集签名 | 插件合集 | `meta.json.sig`、`plugin.js.sig` | 根 CA 签发的合集证书 `eec.pem` |
 
 作者只负责产出 `.author.sig` 与 `author_pub.pem`。CMS 的 `*.sig` 由合集在收录时生成,作者不要自己产出,也不要把 `.author.sig` 改名成 `.sig`。
@@ -253,7 +252,7 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 
 - 交付 `dist/` 整个目录,不要只交付 `plugin.js`:`meta.json` 是市场识别插件的依据,`MUST_PLUSH_WITH_PACKAGE` 表明该目录必须随包分发。
 - 目录结构、`meta.json` 的字段名与 `.author.sig` 的命名都不要改动,市场与合集按约定解析。
-- 需要作者签名时,连同 `meta.json.author.sig`、`plugin.js.author.sig` 与 `author_pub.pem` 一起交付,并把公钥交给插件合集放到 `plugins/<作者>/author_pub.pem`。
+- 需要作者签名时,连同 `plugin.js.author.sig` 与 `author_pub.pem` 一起交付,并把公钥交给插件合集放到 `plugins/<作者>/author_pub.pem`。
 - 产物托管在支持 `https` 的静态站点或 CDN 上,保持地址稳定;地址失效会让已安装插件显示为「启动失败」。
 - 发布前在浏览器控制台执行一次 `import('https://你的地址/plugin.js')`,确认没有语法错误与缺失依赖。
 - `dist/` 已被 `.gitignore` 忽略,需要交付产物时在 Release 中附带。
@@ -264,7 +263,7 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 
 ### 产物多出或少了一个文件
 
-构建脚本会清空 `dist/` 并校验产物清单,只允许 `meta.json`、`plugin.js`、`MUST_PLUSH_WITH_PACKAGE`,以及启用作者签名时的 `meta.json.author.sig`、`plugin.js.author.sig` 与 `author_pub.pem`。出现其他文件说明源码用了动态 `import()` 或引入了需要单独输出的资源。
+构建脚本会清空 `dist/` 并校验产物清单,只允许 `meta.json`、`plugin.js`、`MUST_PLUSH_WITH_PACKAGE`,以及启用作者签名时的 `plugin.js.author.sig` 与 `author_pub.pem`。出现其他文件说明源码用了动态 `import()` 或引入了需要单独输出的资源。
 
 ### meta.json 校验失败
 

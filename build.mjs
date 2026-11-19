@@ -18,8 +18,12 @@ const MARKER_FILE = 'MUST_PLUSH_WITH_PACKAGE'
 const AUTHOR_SIG_SUFFIX = '.author.sig'
 /** 作者公钥文件名,仅在启用作者签名时产出,交给插件合集 */
 const AUTHOR_PUB_FILE = 'author_pub.pem'
-/** 需要作者签名的产物,按固定顺序处理 */
-const AUTHOR_SIGNED_FILES = [META_FILE, PLUGIN_FILE]
+/**
+ * 需要作者签名的产物,按固定顺序处理。
+ * 只签 plugin.js:meta.json 的完整性由插件合集的三层哈希清单覆盖,
+ * 作者对 meta.json 的签名已取消,不再产出 meta.json.author.sig。
+ */
+const AUTHOR_SIGNED_FILES = [PLUGIN_FILE]
 /** Ed25519 签名长度固定为 64 字节 */
 const ED25519_SIGNATURE_BYTES = 64
 
