@@ -2,7 +2,7 @@
 
 [简体中文](README.md) | [English]
 
-A template for dsc plugins: source in TypeScript, bundled by esbuild into a single browser ESM file. The build also writes the runtime metadata, optionally signs it, and the output can be installed into dsc by URL.
+A template for dsc plugins: source in TypeScript, bundled by esbuild into a single browser ESM file. The build also writes the runtime metadata, optionally signs `plugin.js`, and the output can be installed into DeepSeek-Chat-Enhanced by URL.
 
 ## What you get
 
@@ -12,7 +12,7 @@ A template for dsc plugins: source in TypeScript, bundled by esbuild into a sing
 - an optional author signing step that writes `plugin.js.author.sig` with openssl
 - LF line endings on every text output, with minification on by default
 
-The template does not implement any business logic. It only shows the smallest possible interaction between a plugin and the host.
+The template does not implement any business logic. It only shows the smallest possible interaction between a plugin and the host: subscribing to the session switch event, writing to the plugin log, and showing one notice through a host message key.
 
 ## Project layout
 
@@ -25,6 +25,7 @@ dsc-plugin-template/
 ├── LICENSE
 ├── README.md                 # for developers, maintained by the plugin author
 ├── README.user.md            # for end users, maintained by the plugin author
+├── README.en-US.md           # English version of README.md, kept in sync
 ├── build.mjs                 # build entry
 ├── package.json              # project metadata, the source of meta.json
 ├── pnpm-lock.yaml
@@ -137,7 +138,7 @@ When renaming the plugin, update `name` in `package.json`: it must match `dsc-xx
 
 Author signing is a detached raw-public-key signature: an Ed25519 private key signs the file bytes directly, and the signature sits next to the file with an extra `.author.sig` suffix. Key export, signing and verification all run through `openssl` subprocesses, so the build depends on no JavaScript crypto library.
 
-The author signature covers `plugin.js` only. The author signature for `meta.json` has been withdrawn and `meta.json.author.sig` is no longer produced: the collection now covers `meta.json` with a three-layer hash manifest, so the author signature takes no part in verifying that file, and the collection no longer accepts `meta.json.author.sig`.
+The author signature covers `plugin.js` only. The collection verifies `meta.json` with a three-layer hash manifest, so there is no reason to sign it as an author: the build does not produce `meta.json.author.sig`, and the collection does not accept it.
 
 ```bash
 # once: create the author key pair
@@ -230,7 +231,7 @@ Things to keep in mind:
 - `id` is globally unique; a second plugin with the same id is rejected.
 - `version` is the plugin version and is unrelated to the version in `package.json`.
 - `capabilities` may only contain names from the capability table; unknown or duplicate entries make the install fail.
-- The organization keeps a contract reference at `.agents/dsc-plugin-contract.md`; if it disagrees with the DeepSeek-Chat-Enhanced source, the source wins.
+- The DeepSeek-Chat-Enhanced source is the authority for the contract; `src/types.ts` covers only the fields the template uses, so check the source for anything else.
 
 ## Capabilities
 

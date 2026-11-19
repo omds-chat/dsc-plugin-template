@@ -2,7 +2,7 @@
 
 [简体中文] | [English](README.en-US.md)
 
-dsc 插件开发模板:用 TypeScript 写源码,用 esbuild 打包成单个浏览器 ESM 文件。构建同时产出运行时元数据,可选地产出作者签名,产物可以直接在 dsc 中从地址安装。
+dsc 插件开发模板:用 TypeScript 写源码,用 esbuild 打包成单个浏览器 ESM 文件。构建同时产出运行时元数据,可选地为 `plugin.js` 产出作者签名,产物可以直接在 DeepSeek-Chat-Enhanced 中从地址安装。
 
 ## 模板给你什么
 
@@ -25,6 +25,7 @@ dsc-plugin-template/
 ├── LICENSE
 ├── README.md                 # 面向开发者,由插件作者维护
 ├── README.user.md            # 面向普通用户,由插件作者维护
+├── README.en-US.md           # 英文版,与 README.md 同步维护
 ├── build.mjs                 # 构建入口
 ├── package.json              # 工程信息,meta.json 的数据来源
 ├── pnpm-lock.yaml
@@ -137,7 +138,7 @@ dist/
 
 作者签名是裸公钥分离签名:Ed25519 私钥直接对文件原始字节签名,签名文件与被签名文件同名,追加 `.author.sig` 后缀。生成公钥、签名、验签全部交给 `openssl` 子进程完成,构建脚本不依赖任何 JS 密码库。
 
-作者签名的覆盖范围只有 `plugin.js`。作者对 `meta.json` 的签名已经取消,构建不再产出 `meta.json.author.sig`:合集侧改用三层哈希清单覆盖 `meta.json` 的完整性,作者签名不再参与该文件的校验,合集也不再接受 `meta.json.author.sig`。
+作者签名只覆盖 `plugin.js`。`meta.json` 的完整性由插件合集的三层哈希清单校验,作者不必为它签名:构建不产出 `meta.json.author.sig`,合集也不接收该文件。
 
 ```bash
 # 一次性:生成作者密钥对
@@ -230,7 +231,7 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 - `id` 全局唯一,重复安装会被拒绝。
 - `version` 是插件版本,与 `package.json` 中的版本无关。
 - `capabilities` 只写能力表内的名字,未知或重复的能力会让安装被拒绝。
-- 契约速查见组织内的 `.agents/dsc-plugin-contract.md`,若与 DeepSeek-Chat-Enhanced 源码冲突以源码为准。
+- 契约以 DeepSeek-Chat-Enhanced 源码为准;`src/types.ts` 只覆盖模板用到的字段,缺的字段请查源码。
 
 ## 能力清单
 
