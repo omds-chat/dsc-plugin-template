@@ -44,7 +44,7 @@
 | 权威层 | specs/plugin-runtime-spec.md、specs/plugin-develop-spec.md、specs/spec-version.json、schemas/manifest/plugin-manifest.schema.json、schemas/runtime/meta.json | 定义契约本身;其他仓库按 spec_version 选定版本,Schema 路径以 spec-version.json 的 schemas 字段为准,并在自身依赖里固定到具体标签或提交 |
 | 校验层 | scripts/validate-specs.mjs、schemas/examples/、build.mjs | 让契约可执行:自检规范区、对清单与 meta 逐条判定、构建期自校验 meta.json |
 | 示例层 | examples/README.md、examples/session-digest/ | 把契约落成可读、可通过类型检查的代码,不参与打包 |
-| 说明层 | README.md、README.en-US.md、README.user.md、docs/index.md | 面向人的入口、操作步骤与文档导航,不新增规则 |
+| 说明层 | README.md、README.en-US.md、README.user.md、docs/README.md | 面向人的入口、操作步骤与文档导航,不新增规则 |
 
 规范区是权威来源:其他仓库引用运行时规范、开发规范与两份 Schema 时,以本仓库对应版本的正文与 Schema 为准,不在引用方另存一份规则;发现规范与宿主实现不符时,回到本仓库修改并留痕,而不是在引用方就地打补丁。
 
