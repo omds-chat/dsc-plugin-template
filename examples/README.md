@@ -8,7 +8,7 @@
 | 产物保留具名 `manifest` 与 `activate` 导出 | [session-digest/index.ts](session-digest/index.ts) |
 | 激活与停用:异步入口、重复激活去重、返回值不传释放函数 | `activate` 与 `deactivate` |
 | 依赖注入的上下文成员:`context.id`、`context.version`、`context.log` | `activate` 首段 |
-| 能力申请与调用:`sessions.read`、`sessions.list`、`events.on`、`ui.notify`、`settings.locale`、`storage` | `handleSwitch`、`activate` |
+| 能力申请:清单里申报 `sessions:read`、`sessions:list`、`events:session`、`notify`、`settings:locale`、`plugins:storage`;调用时的上下文成员分别是 `context.sessions.read`、`context.sessions.list`、`context.events.on`、`context.ui.notify`、`context.settings.locale`、`context.storage` | `handleSwitch`、`activate` |
 | 取消与超时:传入 `signal`,按 `error.name` 判定 `PluginAbortError`、`PluginTimeoutError` | `errorNameOf`、`handleSwitch` |
 | 插件数据:读回值形态收敛、写回失败只记日志 | `readState`、`writeState` |
 | 用户可见文案使用宿主文案键 | `NOTICE_KEY` |
