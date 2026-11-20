@@ -6,7 +6,7 @@
 
 | 文件 | 内容 |
 |:---:|:---:|
-| [plugin-runtime-spec.md](plugin-runtime-spec.md) | 运行时规范:产物形态、导出契约、生命周期与超时、能力与限流、上下文成员、安全边界、错误降级 |
+| [plugin-runtime-spec.md](plugin-runtime-spec.md) | 运行时规范:产物形态与体积上限、导出契约、生命周期与超时、能力与限流、上下文成员(可见范围、事件、提示与设置、插件数据、大体积数据与 IndexedDB、外源请求)、安全边界、错误降级 |
 | [plugin-develop-spec.md](plugin-develop-spec.md) | 开发规范:清单字段与校验、版本与依赖、运行时 meta、作者签名与公钥位置、分发要求 |
 | [spec-version.json](spec-version.json) | 规范版本与 Schema 路径,供其他仓库引用时锁定 |
 | [../schemas/manifest/plugin-manifest.schema.json](../schemas/manifest/plugin-manifest.schema.json) | 清单 Schema |
@@ -20,6 +20,9 @@
 - 权威来源是 `dsc-plugin-engine` 的实现:清单校验、能力表、限流、加载与签名都以实现为准;实现与文档不一致时以实现为准,并在「已知差异」里保留两侧口径。
 - 其他仓库引用本规范时,按 `spec_version` 选定版本,并在自身依赖里固定到具体标签或提交;文档内的链接一律指向最新文件,不在链接 URL 里写死标签名,历史版本由每份规范末尾的「历史版本列表」导航。Schema 路径以 [spec-version.json](spec-version.json) 的 `schemas` 字段为准。
 - 上游实现变更后,先改本目录的规范与 Schema,再升 `spec_version`,最后同步引用方;`dsc_core` 字段记录对应的宿主版本。
+- 本仓库是插件运行时规范、插件开发规范、JSON Schema 与示例的唯一源头:其他仓库不复制规范正文,只保留一段占位说明与指向本仓库的在线链接。
+- 跨仓库引用一律用在线 URL,形如 `https://github.com/omds-chat/dsc-plugin-template/blob/main/specs/plugin-runtime-spec.md`,不写相对路径。相对路径只在发出链接的仓库里成立,到了引用方仓库会指向错误位置,克隆、镜像与离线阅读都会失效。
+- 本仓库内部互相引用时才用相对路径,便于本地预览与链接检查;本仓库引用其他仓库的文档同样用在线 URL,不写 `../其他仓库/...`。
 
 ## 校验
 

@@ -31,8 +31,22 @@ The plugin runtime spec, the plugin development spec and their JSON Schemas live
 
 - The specs follow the `dsc-plugin-engine` implementation in DeepSeek-Chat-Enhanced; this repository only collects them and makes them machine-checkable, it does not add rules. Where the two disagree, [specs/README.md](specs/README.md) records it under "Known differences".
 - A single `plugin.js` must stay within 2 MB (2097152 bytes); online installs and local offline packages share the same limit, and anything larger is rejected with `package-too-large`. Details are in [runtime spec](specs/plugin-runtime-spec.md) 1 and [development spec](specs/plugin-develop-spec.md) 6.
+- Every host-imposed limit is collected in the [runtime spec](specs/plugin-runtime-spec.md): code size and how it is measured in 1, capabilities and their rate limits in 4, the 64KB plugin data quota, key-name limit and the IndexedDB boundary in 5.4 and 5.6, outbound request rules in 5.5. Offline packages and URL installs share one size check, see [development spec](specs/plugin-develop-spec.md) 6.
 - Consumers pick `spec_version` from `specs/spec-version.json` and pin it to a specific tag or commit in their own dependencies. Links inside the docs always point at the latest files instead of hardcoding tag names in URLs, and each spec ends with a version history section for older releases. Change the specs and the schemas first, then bump the version.
 - Validation runs offline with no dependencies: `node scripts/validate-specs.mjs` for the self-check and `node scripts/validate-specs.mjs <manifest file>` for a single manifest.
+
+## Doc ownership and cross-repository links
+
+The plugin runtime spec, the plugin development spec, the JSON Schemas and the examples are maintained in this repository and are the single source of truth. Other repositories keep a placeholder plus an online link instead of copying the text:
+
+| Rule | Requirement |
+|:---:|:---:|
+| Single source | The runtime spec, the development spec, the schemas and the examples live only in `dsc-plugin-template`; other repositories keep no second copy and add no local rules |
+| How to reference | A consumer writes one placeholder line (this repository is authoritative) plus an online link, for example `https://github.com/omds-chat/dsc-plugin-template/blob/main/specs/plugin-runtime-spec.md` |
+| No relative paths | Cross-repository references always use online URLs. A relative path only resolves inside the repository that emits it and breaks once it lands in another repository, including clones, mirrors and offline reading |
+| Inside this repository | Use relative paths only for this repository's own documents, so local preview and link checks work |
+| Referring outward | Documents here cite other repositories with online URLs too, never `../other-repo/...` |
+| Order of change | Change this repository's specs and schemas first, then bump `spec_version`, then notify consumers; consumers take the new version without editing their text |
 
 ## Project layout
 
@@ -305,6 +319,10 @@ Things to keep in mind:
 | `plugins:storage` | `context.storage` | 100 calls / 10 s, 64KB per plugin |
 
 `net:fetch` is available to built-in plugins only; a third-party manifest that requests it is rejected.
+
+- Rate limits count per plugin instance over a 10 s window; per-call timeouts and the two engine-only capability ids are in [runtime spec](specs/plugin-runtime-spec.md) 4.
+- The 64KB `plugins:storage` quota is the total for all keys of one plugin, not per key, and a key name holds at most 64 characters. Keep asset snapshots and caches out of it and use the browser's IndexedDB instead: it does not count against the 64KB, the host sets no per-plugin IndexedDB limit, and it is still bound by the browser's origin quota. Details are in [runtime spec](specs/plugin-runtime-spec.md) 5.4 and 5.6.
+- Code size: a single `plugin.js` must stay within 2 MB (2097152 bytes), the same limit for URL installs and offline packages, see [runtime spec](specs/plugin-runtime-spec.md) 1.
 
 The template requests `events:session` and `notify`, and subscribes to the single contribution point `session:changed`.
 

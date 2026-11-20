@@ -5,7 +5,7 @@
 ## 1. 开发约束
 
 - 纯前端运行:只用浏览器 API,不引入 Node 内置模块、后端接口与新增依赖。
-- 不直接访问内核:插件拿不到 `dsc-core` 的 `CoreApi`、`zustand` store 句柄与 IndexedDB 句柄,只能使用 `context` 上的受限能力对象。
+- 不直接访问内核:插件拿不到 `dsc-core` 的 `CoreApi`、`zustand` store 句柄与 IndexedDB 句柄,只能使用 `context` 上的受限能力对象。这里的 IndexedDB 句柄指宿主的库;插件自己的大体积数据(资产快照、缓存)用浏览器的 `indexedDB` 自建库,存放与配额见[运行时规范](plugin-runtime-spec.md) 5.6。
 - 不直接操作宿主 DOM:`context` 未提供 DOM 或插槽接口,界面提示统一走 `context.ui.notify`。
 - 用户可见文案使用宿主文案键:`notify` 的 `key` 取自宿主 i18n 的既有键,不硬编码中英文句子。
 - 代码风格与宿主一致:单引号、无分号、2 空格缩进、具名导出、模块内相对导入带 `.js` 后缀。
