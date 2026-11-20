@@ -37,7 +37,7 @@ The plugin runtime spec, the plugin development spec and their JSON Schemas live
 
 ```text
 dsc-plugin-template/
-├── .env.example              # environment template, copy to .env and fill in the key
+├── .env.example              # environment template: signing key and integration addresses
 ├── .gitattributes            # repository-wide LF
 ├── .gitignore
 ├── .npmrc
@@ -249,6 +249,24 @@ URL rules: use an `https://` URL when distributing. For local debugging DeepSeek
 The install record keeps the code text of the output, and startup restores from it without fetching again; after changing the output, uninstall the plugin in the panel and install it again so the new bytes are fetched.
 
 Deployment requirement: the host fetches the output bytes and stores them as UTF-8 text, so the host must return an `Access-Control-Allow-Origin` header, for example `Access-Control-Allow-Origin: *`; otherwise fetching is rejected and the install fails when the output is served from a different origin. The fetch sends no credentials, so `Access-Control-Allow-Credentials` is not needed. Serving the output from the same domain as the page needs no such header.
+
+## Local integration addresses
+
+For offline integration across repositories, create `.env` in the repository root first:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Local value | Notes |
+|:---:|:---:|:---:|
+| `DS_CHAT_PAGES_LINK` | `http://127.0.0.1:61117` | Chat page address |
+| `DSC_INNER_PLUGIN_PAGES_LINK` | `http://127.0.0.1:61118` | Inner-plugin page address |
+| `AWESOME_DSC_PLUGIN_PAGES_LINK` | `http://127.0.0.1:61119` | Plugin collection page address |
+
+These three values are local addresses for integration only, not distribution addresses; distribution still uses `https://` as described above.
+
+The template consumes these addresses for integration only and never writes them into artifacts: `build.mjs` does not read them, and neither the files under `dist/` nor `meta.json` contain them. `.env` is already ignored by `.gitignore` and does not enter git; `.env.example` is committed and holds example values only.
 
 ## Editing the manifest
 

@@ -37,7 +37,7 @@ dsc 插件开发模板:用 TypeScript 写源码,用 esbuild 打包成单个浏�
 
 ```text
 dsc-plugin-template/
-├── .env.example              # 环境变量模板,复制为 .env 后填私钥
+├── .env.example              # 环境变量模板:作者签名与本地联调地址
 ├── .gitattributes            # 全仓库统一 LF
 ├── .gitignore
 ├── .npmrc
@@ -249,6 +249,24 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 安装记录会保存产物的代码文本,启动恢复不再取件;产物改动后需要先在面板卸载再重新安装,才会重新取回新字节。
 
 部署要求:宿主安装时用 `fetch` 取产物字节,再按 UTF-8 文本保存,因此托管方必须返回 `Access-Control-Allow-Origin` 响应头,例如 `Access-Control-Allow-Origin: *`,否则插件产物托管在另一个源时取件会被拒绝,安装失败。取件默认不携带凭证,不需要 `Access-Control-Allow-Credentials`;把产物与页面放在同一域名下同源部署,则不需要该响应头。
+
+## 本地联调地址
+
+跨仓库离线联调时,先在仓库根目录建一份 `.env`:
+
+```bash
+cp .env.example .env
+```
+
+| 变量 | 本机取值 | 说明 |
+|:---:|:---:|:---:|
+| `DS_CHAT_PAGES_LINK` | `http://127.0.0.1:61117` | 对话页面地址 |
+| `DSC_INNER_PLUGIN_PAGES_LINK` | `http://127.0.0.1:61118` | 内测插件页地址 |
+| `AWESOME_DSC_PLUGIN_PAGES_LINK` | `http://127.0.0.1:61119` | 插件合集页地址 |
+
+这三个取值是本地联调用的本机地址,不是分发地址;对外分发仍按上文规则使用 `https://`。
+
+模板仓库只消费这些地址做联调,不写入产物:`build.mjs` 不读取它们,`dist/` 下的文件与 `meta.json` 都不含这些取值。`.env` 已被 `.gitignore` 忽略,不会进 git;`.env.example` 随仓库提交,只放示例取值。
 
 ## 如何改 manifest
 
