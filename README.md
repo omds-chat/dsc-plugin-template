@@ -11,8 +11,27 @@ dsc 插件开发模板:用 TypeScript 写源码,用 esbuild 打包成单个浏�
 - 一套构建流程:打包 `plugin.js`、生成并自校验 `meta.json`、写入 `MUST_PLUSH_WITH_PACKAGE` 标记
 - 一条可选的作者签名链路:打开开关后用 openssl 对 `plugin.js` 生成 `.author.sig`
 - 文本产物强制 LF 换行,`plugin.js` 默认行压缩
+- 一套可校验的规范区:运行时规范、开发规范与 JSON Schema,其他仓库按版本引用
 
 模板本身不做业务,只演示插件与宿主之间的最小交互:订阅会话切换事件、写插件日志、用宿主文案键提示一次。
+
+## 规范与 Schema
+
+插件运行时规范、插件开发规范与配套 JSON Schema 在本仓库维护,其他仓库引用这里的版本,不再各自维护一份:
+
+| 内容 | 位置 |
+|:---:|:---:|
+| 规范区索引与已知差异 | [specs/README.md](specs/README.md) |
+| 插件运行时规范 | [specs/plugin-runtime-spec.md](specs/plugin-runtime-spec.md) |
+| 插件开发规范 | [specs/plugin-develop-spec.md](specs/plugin-develop-spec.md) |
+| 规范版本与 Schema 路径 | [specs/spec-version.json](specs/spec-version.json) |
+| 清单 Schema | [schemas/manifest/plugin-manifest.schema.json](schemas/manifest/plugin-manifest.schema.json) |
+| 运行时 meta Schema | [schemas/runtime/meta.json](schemas/runtime/meta.json) |
+| 先行代码实现 | [examples/session-digest/index.ts](examples/session-digest/index.ts) |
+
+- 规范以 DeepSeek-Chat-Enhanced 的 `dsc-plugin-engine` 实现为准,本仓库只做收拢与机器可校验化,不新增规则;两侧口径不一致时记录在 [specs/README.md](specs/README.md) 的「已知差异」。
+- 引用方按 `specs/spec-version.json` 的 `spec_version` 选定版本,并用 git 标签或提交固定,不要引用浮动分支;改规范时先改规范与 Schema,再升版本号。
+- 校验命令:`node scripts/validate-specs.mjs`(自检),`node scripts/validate-specs.mjs <清单文件>`(校验单个清单),不联网、不安装依赖。
 
 ## 目录结构
 
@@ -31,9 +50,24 @@ dsc-plugin-template/
 ├── pnpm-lock.yaml
 ├── pnpm-workspace.yaml
 ├── tsconfig.json
+├── examples/
+│   ├── README.md             # 示例索引
+│   └── session-digest/
+│       ├── index.ts          # 示例插件的激活与停用
+│       └── manifest.ts       # 示例插件的清单
 ├── schemas/
+│   ├── examples/             # Schema 的正例与反例
+│   ├── manifest/
+│   │   └── plugin-manifest.schema.json # 清单 schema
 │   └── runtime/
 │       └── meta.json         # runtime meta schema
+├── scripts/
+│   └── validate-specs.mjs    # 零依赖规范校验脚本
+├── specs/
+│   ├── README.md             # 规范区索引与已知差异
+│   ├── plugin-develop-spec.md # 插件开发规范
+│   ├── plugin-runtime-spec.md # 插件运行时规范
+│   └── spec-version.json     # 规范版本与 Schema 路径
 ├── src/
 │   ├── index.ts              # 激活与停用入口
 │   ├── manifest.ts           # 运行时清单
@@ -47,7 +81,11 @@ dsc-plugin-template/
 | `package.json` | 工程信息与 `meta.json` 的数据来源 |
 | `src/index.ts` | 激活与停用入口 |
 | `src/manifest.ts` | 插件运行时清单,产物继续导出 |
-| `schemas/runtime/` | 一份 JSON Schema,自校验规则与之保持一致 |
+| `schemas/manifest/` | 清单 JSON Schema,与宿主的清单校验规则对齐 |
+| `schemas/runtime/` | 运行时 meta 的 JSON Schema,构建自校验覆盖其中的必填与格式规则 |
+| `scripts/validate-specs.mjs` | 零依赖校验脚本,校验 Schema、样例与本仓库 meta |
+| `specs/` | 规范区:运行时规范、开发规范与版本信息 |
+| `examples/session-digest/` | 先行示例插件,随类型检查一起验证 |
 | `.env.example` | 环境变量模板 |
 
 ## 环境要求
@@ -77,6 +115,7 @@ pnpm run build
 | `pnpm run type` | 运行 `tsc --noEmit` 做类型检查 |
 | `pnpm run build` | 构建全部产物 |
 | `pnpm run build -- --no-minify` | 关闭行压缩后再构建 |
+| `pnpm run validate:specs` | 校验规范区的 Schema、样例与本仓库 meta 数据 |
 
 `build.mjs` 支持 `--no-minify` 一个参数,关闭 esbuild 的行压缩。压缩后的产物体积明显更小,分发时建议保持默认压缩。
 
@@ -207,9 +246,9 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 
 地址规则:分发给用户时使用 `https://` 地址。本机调试时 DeepSeek-Chat-Enhanced 允许 `http://localhost`、`http://127.0.0.1` 与 `http://[::1]`,其余地址必须是 `https://`。
 
-产物改动后需要先在面板卸载再重新安装,同一地址的模块会被浏览器缓存。
+安装记录会保存产物的代码文本,启动恢复不再取件;产物改动后需要先在面板卸载再重新安装,才会重新取回新字节。
 
-部署要求:产物以 ES 模块的形式通过 `import()` 加载,浏览器对跨源模块导入强制校验 CORS。因此托管方必须返回 `Access-Control-Allow-Origin` 响应头,例如 `Access-Control-Allow-Origin: *`,否则插件产物托管在另一个源时安装会失败。把产物与页面放在同一域名下同源部署,则不需要该响应头。
+部署要求:宿主安装时用 `fetch` 取产物字节,再按 UTF-8 文本保存,因此托管方必须返回 `Access-Control-Allow-Origin` 响应头,例如 `Access-Control-Allow-Origin: *`,否则插件产物托管在另一个源时取件会被拒绝,安装失败。取件默认不携带凭证,不需要 `Access-Control-Allow-Credentials`;把产物与页面放在同一域名下同源部署,则不需要该响应头。
 
 ## 如何改 manifest
 
@@ -232,6 +271,7 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 - `version` 是插件版本,与 `package.json` 中的版本无关。
 - `capabilities` 只写能力表内的名字,未知或重复的能力会让安装被拒绝。
 - 契约以 DeepSeek-Chat-Enhanced 源码为准;`src/types.ts` 只覆盖模板用到的字段,缺的字段请查源码。
+- 字段与校验规则的完整说明见 [specs/plugin-develop-spec.md](specs/plugin-develop-spec.md),可用 `node scripts/validate-specs.mjs <清单文件>` 校验。
 
 ## 能力清单
 
@@ -254,10 +294,10 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 - 交付 `dist/` 整个目录,不要只交付 `plugin.js`:`meta.json` 是市场识别插件的依据,`MUST_PLUSH_WITH_PACKAGE` 表明该目录必须随包分发。
 - 目录结构、`meta.json` 的字段名与 `.author.sig` 的命名都不要改动,市场与合集按约定解析。
 - 需要作者签名时,连同 `plugin.js.author.sig` 与 `author_pub.pem` 一起交付,并把公钥交给插件合集放到 `plugins/<作者>/author_pub.pem`。
-- 产物托管在支持 `https` 的静态站点或 CDN 上,保持地址稳定;地址失效会让已安装插件显示为「启动失败」。
+- 产物托管在支持 `https` 的静态站点或 CDN 上,保持地址稳定;地址失效会影响检查更新与重新安装,已安装插件的启动恢复只用安装时保存的代码。
 - 发布前在浏览器控制台执行一次 `import('https://你的地址/plugin.js')`,确认没有语法错误与缺失依赖。
 - `dist/` 已被 `.gitignore` 忽略,需要交付产物时在 Release 中附带。
-- 插件运行在用户浏览器中,可以接触 API Key 与当前会话内容,分发时必须提示用户只安装信任来源的插件。
+- 插件运行在用户浏览器中,可以读取当前会话的可见字段,不能读取 API Key、附件原件与其他插件的数据;分发时必须提示用户只安装信任来源的插件。
 - [README.user.md](README.user.md) 是面向普通用户的说明文档,发布前把其中的占位内容替换为实际的插件说明。
 
 ## 常见问题
@@ -286,7 +326,7 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 
 ### 从地址安装失败
 
-先确认产物地址本身可访问:在新标签页直接打开该地址,应当返回脚本内容而不是 404、错误页或登录跳转。再确认 CORS:产物按 ES 模块通过 `import()` 加载,跨源托管必须返回 `Access-Control-Allow-Origin`;缺少该响应头时浏览器会在控制台报 CORS 错误并中断安装。把产物与页面放在同一域名下同源部署可以避开这一限制。
+先确认产物地址本身可访问:在新标签页直接打开该地址,应当返回脚本内容而不是 404、错误页或登录跳转。再确认 CORS:宿主用 `fetch` 取产物字节,跨源托管必须返回 `Access-Control-Allow-Origin`;缺少该响应头时浏览器会在控制台报 CORS 错误,安装结果是 `artifact-unreachable`。把产物与页面放在同一域名下同源部署可以避开这一限制。
 
 ## 许可证
 

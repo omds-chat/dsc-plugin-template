@@ -29,6 +29,14 @@
     "repo_link": {
       "$ref": "#/$defs/link"
     },
+    "capabilities": {
+      "type": "array",
+      "description": "可选的能力声明。离线包装安装时用它推导插件清单,缺省或形态不合法时改用产物导出的 manifest;net:fetch 只对内置插件开放。",
+      "items": {
+        "$ref": "#/$defs/capability"
+      },
+      "uniqueItems": true
+    },
     "dependencies": {
       "type": "object",
       "properties": {
@@ -96,10 +104,25 @@
     "versionRange": {
       "type": "string",
       "minLength": 1,
-      "description": "semver range 表达式,如 ^1.0.0、~1.2.3、>=1.0.0 <2.0.0、*",
+      "description": "semver range 表达式,如 ^1.0.0、~1.2.3、*。离线包装安装时,该值会作为插件清单的 engines 使用,而清单只接受单段比较表达式,因此写成 >=1.0.0 <2.0.0 这类组合范围会导致安装被拒。",
       "examples": [
         "^1.0.0",
-        ">=2.1.0 <3.0.0"
+        "~1.2.3",
+        "*"
+      ]
+    },
+    "capability": {
+      "type": "string",
+      "description": "能力名,取自 dsc-core 的能力表",
+      "enum": [
+        "sessions:list",
+        "sessions:read",
+        "sessions:rename",
+        "events:session",
+        "notify",
+        "settings:locale",
+        "plugins:storage",
+        "net:fetch"
       ]
     },
     "link": {

@@ -11,8 +11,27 @@ A template for dsc plugins: source in TypeScript, bundled by esbuild into a sing
 - a build that bundles `plugin.js`, generates and self-validates `meta.json`, and writes the `MUST_PLUSH_WITH_PACKAGE` marker
 - an optional author signing step that writes `plugin.js.author.sig` with openssl
 - LF line endings on every text output, with minification on by default
+- a set of checkable specs: the runtime spec, the development spec and their JSON Schemas, referenced by other repositories by version
 
 The template does not implement any business logic. It only shows the smallest possible interaction between a plugin and the host: subscribing to the session switch event, writing to the plugin log, and showing one notice through a host message key.
+
+## Specs and schemas
+
+The plugin runtime spec, the plugin development spec and their JSON Schemas live in this repository; other repositories reference this version instead of keeping their own copy:
+
+| Content | Location |
+|:---:|:---:|
+| Spec area index and known differences | [specs/README.md](specs/README.md) |
+| Plugin runtime spec | [specs/plugin-runtime-spec.md](specs/plugin-runtime-spec.md) |
+| Plugin development spec | [specs/plugin-develop-spec.md](specs/plugin-develop-spec.md) |
+| Spec version and schema paths | [specs/spec-version.json](specs/spec-version.json) |
+| Manifest schema | [schemas/manifest/plugin-manifest.schema.json](schemas/manifest/plugin-manifest.schema.json) |
+| Runtime meta schema | [schemas/runtime/meta.json](schemas/runtime/meta.json) |
+| Reference implementation | [examples/session-digest/index.ts](examples/session-digest/index.ts) |
+
+- The specs follow the `dsc-plugin-engine` implementation in DeepSeek-Chat-Enhanced; this repository only collects them and makes them machine-checkable, it does not add rules. Where the two disagree, [specs/README.md](specs/README.md) records it under "Known differences".
+- Consumers pick `spec_version` from `specs/spec-version.json` and pin it with a git tag or commit rather than a moving branch; change the specs and the schemas first, then bump the version.
+- Validation runs offline with no dependencies: `node scripts/validate-specs.mjs` for the self-check and `node scripts/validate-specs.mjs <manifest file>` for a single manifest.
 
 ## Project layout
 
@@ -31,9 +50,24 @@ dsc-plugin-template/
 ├── pnpm-lock.yaml
 ├── pnpm-workspace.yaml
 ├── tsconfig.json
+├── examples/
+│   ├── README.md             # example index
+│   └── session-digest/
+│       ├── index.ts          # example plugin activation and deactivation
+│       └── manifest.ts       # example plugin manifest
 ├── schemas/
+│   ├── examples/             # passing and failing schema samples
+│   ├── manifest/
+│   │   └── plugin-manifest.schema.json # manifest schema
 │   └── runtime/
 │       └── meta.json         # runtime meta schema
+├── scripts/
+│   └── validate-specs.mjs    # dependency-free spec validator
+├── specs/
+│   ├── README.md             # spec area index and known differences
+│   ├── plugin-develop-spec.md # plugin development spec
+│   ├── plugin-runtime-spec.md # plugin runtime spec
+│   └── spec-version.json     # spec version and schema paths
 ├── src/
 │   ├── index.ts              # activation and deactivation entry points
 │   ├── manifest.ts           # runtime manifest
@@ -47,7 +81,11 @@ dsc-plugin-template/
 | `package.json` | Project metadata and the source of `meta.json` |
 | `src/index.ts` | Activation and deactivation entry points |
 | `src/manifest.ts` | Runtime manifest, still exported by the output |
-| `schemas/runtime/` | The JSON Schema that the self-validation follows |
+| `schemas/manifest/` | Manifest JSON Schema, aligned with the host manifest checks |
+| `schemas/runtime/` | JSON Schema for the runtime meta; the build self-validation covers its required and format rules |
+| `scripts/validate-specs.mjs` | Dependency-free validator for the schemas, samples and this repository meta |
+| `specs/` | Spec area: runtime spec, development spec, version info |
+| `examples/session-digest/` | Reference example plugin, checked together with the type check |
 | `.env.example` | Environment template |
 
 ## Requirements
@@ -77,6 +115,7 @@ pnpm run build
 | `pnpm run type` | Run `tsc --noEmit` for a type check |
 | `pnpm run build` | Build every output |
 | `pnpm run build -- --no-minify` | Build without minification |
+| `pnpm run validate:specs` | Validate the spec schemas, samples and this repository meta |
 
 `build.mjs` takes one flag, `--no-minify`, which turns esbuild minification off. The minified output is much smaller, so keep the default when distributing.
 
@@ -207,9 +246,9 @@ The end-user document is [README.user.md](README.user.md).
 
 URL rules: use an `https://` URL when distributing. For local debugging DeepSeek-Chat-Enhanced accepts `http://localhost`, `http://127.0.0.1` and `http://[::1]`; every other address must use `https://`.
 
-After changing the output, uninstall the plugin in the panel and install it again, because the browser caches the module for a given URL.
+The install record keeps the code text of the output, and startup restores from it without fetching again; after changing the output, uninstall the plugin in the panel and install it again so the new bytes are fetched.
 
-Deployment requirement: the output is loaded as an ES module through `import()`, and browsers enforce CORS on cross-origin module imports. The host must therefore return an `Access-Control-Allow-Origin` header, for example `Access-Control-Allow-Origin: *`; otherwise installing fails when the output is served from a different origin. Serving the output from the same domain as the page needs no such header.
+Deployment requirement: the host fetches the output bytes and stores them as UTF-8 text, so the host must return an `Access-Control-Allow-Origin` header, for example `Access-Control-Allow-Origin: *`; otherwise fetching is rejected and the install fails when the output is served from a different origin. The fetch sends no credentials, so `Access-Control-Allow-Credentials` is not needed. Serving the output from the same domain as the page needs no such header.
 
 ## Editing the manifest
 
@@ -232,6 +271,7 @@ Things to keep in mind:
 - `version` is the plugin version and is unrelated to the version in `package.json`.
 - `capabilities` may only contain names from the capability table; unknown or duplicate entries make the install fail.
 - The DeepSeek-Chat-Enhanced source is the authority for the contract; `src/types.ts` covers only the fields the template uses, so check the source for anything else.
+- The full field and validation rules are in [specs/plugin-develop-spec.md](specs/plugin-develop-spec.md); check a manifest with `node scripts/validate-specs.mjs <manifest file>`.
 
 ## Capabilities
 
@@ -254,10 +294,10 @@ The template requests `events:session` and `notify`, and subscribes to the singl
 - Ship the whole `dist/` directory, not just `plugin.js`: `meta.json` is what a market reads to identify the plugin, and `MUST_PLUSH_WITH_PACKAGE` states that the directory must ship as a package.
 - Do not rename the directory layout, the `meta.json` fields or the `.author.sig` files; markets and collections parse them by convention.
 - When you sign as the author, ship `plugin.js.author.sig` and `author_pub.pem`, and hand the public key to the collection so it lands at `plugins/<author>/author_pub.pem`.
-- Host the output on a static site or CDN that serves `https` and keep the URL stable; a dead URL shows the installed plugin as failed to start.
+- Host the output on a static site or CDN that serves `https` and keep the URL stable; a dead URL affects update checks and reinstalls, while startup restores installed plugins from the code saved at install time.
 - Before publishing, run `import('https://your-host/plugin.js')` once in the browser console to confirm there is no syntax error and no missing dependency.
 - `dist/` is ignored by `.gitignore`; attach the output to a release when you need to ship it.
-- Plugins run in the user browser and can reach the API key and the current conversation, so any distribution must tell users to install only plugins from sources they trust.
+- Plugins run in the user browser and can read the visible fields of the current conversation, but not the API key, attachment originals or other plugins' data; any distribution must tell users to install only plugins from sources they trust.
 - [README.user.md](README.user.md) is the end-user document; replace its placeholders with the real plugin description before publishing.
 
 ## FAQ
@@ -286,7 +326,7 @@ The install result is `incompatible-version`, which means `engines` does not mat
 
 ### Install from a URL fails
 
-First check that the output URL itself is reachable: opening it in a new tab should return the script, not a 404, an error page or a login redirect. Then check CORS: the output is loaded as an ES module through `import()`, so a cross-origin host must return `Access-Control-Allow-Origin`; without that header the browser reports a CORS error and the install stops. Serving the output from the same domain as the page avoids the restriction.
+First check that the output URL itself is reachable: opening it in a new tab should return the script, not a 404, an error page or a login redirect. Then check CORS: the host fetches the output bytes, so a cross-origin host must return `Access-Control-Allow-Origin`; without that header the browser reports a CORS error and the install result is `artifact-unreachable`. Serving the output from the same domain as the page avoids the restriction.
 
 ## License
 
