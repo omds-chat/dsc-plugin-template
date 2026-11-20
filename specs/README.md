@@ -18,7 +18,7 @@
 ## 权威来源与引用约定
 
 - 权威来源是 `dsc-plugin-engine` 的实现:清单校验、能力表、限流、加载与签名都以实现为准;实现与文档不一致时以实现为准,并在「已知差异」里保留两侧口径。
-- 其他仓库引用本规范时,按 `spec_version` 选定版本,再用 git 标签或提交固定,不要在文档里引用浮动分支;Schema 路径以 [spec-version.json](spec-version.json) 的 `schemas` 字段为准。
+- 其他仓库引用本规范时,按 `spec_version` 选定版本,并在自身依赖里固定到具体标签或提交;文档内的链接一律指向最新文件,不在链接 URL 里写死标签名,历史版本由每份规范末尾的「历史版本列表」导航。Schema 路径以 [spec-version.json](spec-version.json) 的 `schemas` 字段为准。
 - 上游实现变更后,先改本目录的规范与 Schema,再升 `spec_version`,最后同步引用方;`dsc_core` 字段记录对应的宿主版本。
 
 ## 校验
@@ -33,16 +33,23 @@ node scripts/validate-specs.mjs <meta.json> --schema meta # 校验单个运行�
 
 ## 已知差异
 
-以下差异来自上游文档与实现的对照,本规范按实现取舍并在此留痕,不修改上游文档:
+以下差异来自上游文档、Schema 与实现的对照,本规范按实现取舍并在此留痕,不修改上游文档。本表只保留当前仍然成立的条目:已经收敛的差异直接删除,不留历史,每行的「本规范取舍」都对应正文里的具体章节。
 
 | 主题 | 上游文档口径 | 实现口径 | 本规范取舍 |
 |:---:|:---:|:---:|:---:|
-| `meta.json.author.sig` | 插件开发规范与产物规范把它列为作者签名产物,并称安装与启动时校验 | 引擎只验 `plugin.js.author.sig`;`meta.json` 的完整性由合集三层哈希清单覆盖,本仓库构建不产出该文件 | 只收 `plugin.js.author.sig` |
-| 1 MB 上限的适用范围 | 产物规范写在「本地离线包」一节 | 在线安装与离线包共用同一上限,在线超限同样按 `package-too-large` 拒绝 | 按实现写成在线与离线同一上限 |
-| `context.id` 与 `context.version` | 上游三份文档(产物规范、开发规范、引擎说明)的上下文成员表都没有列出 | 引擎注入的上下文包含这两个只读成员 | 列为上下文成员 |
-| 清单 id 的收敛长度 | 收敛实现只要求小写字母开头、只含小写字母数字与连字符,不限长度 | 清单校验要求 3 到 64 字符,1 到 2 字符的收敛结果会在安装时被拒 | 要求两处同时满足 |
-| 版本范围的写法 | 运行时 meta 的 `dependencies.dsc` 描述为 semver range,允许组合范围 | 清单 `engines` 只接受单段比较表达式;离线包由 `meta.json` 推导清单时,`dependencies.dsc` 会直接当作 `engines`,组合范围会按 `incompatible-version` 拒绝 | 两个字段分别说明,并提示 `dependencies.dsc` 也要写成单段表达式 |
+| 体积上限的记述来源 | 上游产物规范的备注仍写模板 specs 按旧上限记述、本仓库已提升到 2 MB,并留了发布前人工复核 | 实现、运行时规范与开发规范统一为 2 MB(2097152 字节),宿主提示文案由字节常量派生 | 按 2 MB 统一记述,该备注待上游更新 |
+| 离线包预检里体积检查的位置 | 引擎说明与用户指南的预检表把「`plugin.js` 不超过 2 MB」列在 `meta.json` 解析与 UTF-8 检查之后 | 取到 `plugin.js` 后立即比对体积,早于 `meta.json` 解码与解析;体积与清单同时不合规时报 `package-too-large` | 按实现排序,写进 [开发规范](plugin-develop-spec.md) 6.2 |
+| `meta.json` 的 UTF-8 要求 | 预检表只写「可解析」「`name`、`version`、`author` 非空」「版本为三段数字」 | 先按严格 UTF-8 解码,非法字节序列按 `invalid-meta` 拒绝,不会进入字段校验 | 写进 [开发规范](plugin-develop-spec.md) 4 与 6.2 的 `invalid-meta` 口径 |
+| `meta.json` 的 `description` 形态 | 运行时 meta Schema 与[开发规范](plugin-develop-spec.md) 4 要求 `description` 为双语对象,至少含 `zh-CN` 或 `en-US` 一项 | 引擎接受字符串形式的 `description`,两种语言按同一内容处理;字段缺失也不拒绝,按空串处理 | Schema 与引擎分开写:Schema 从严,引擎的最小校验单独列出 |
+| 版本范围的写法 | 运行时 meta Schema 把 `dependencies.dsc` 描述为 semver range,`>=1.0.0 <2.0.0` 这类组合范围也能通过 Schema | 清单 `engines` 与离线包的 `dependencies.dsc` 都只接受单段比较表达式;组合范围在离线包预检阶段按 `invalid-meta` 拒绝,清单侧的 `engines` 才按 `incompatible-version` 拒绝 | 两个字段分别说明,并提示 `dependencies.dsc` 也要写成单段表达式 |
+| 带 `=` 前缀的精确版本 | 版本范围只写「支持 `^`、`~`、`>=`、`<=` 与精确版本」,未提等号前缀 | 范围规则接受 `=1.0.0`,与 `1.0.0` 等价,按三段数字比较 | [开发规范](plugin-develop-spec.md) 3 补上 `=` |
 
 ## 语言
 
 规范正文以中文维护,与上游文档语言一致;仓库根目录的 `README.md` 与 `README.en-US.md` 保持中英两版同步。
+
+## 历史版本列表
+
+本文档只维护最新版本,历史版本由本节的链接负责导航。
+
+本节为占位:仓库当前还没有发布标签,首个版本发布后在此按版本倒序列出,每个条目指向该版本标签下的本文档。

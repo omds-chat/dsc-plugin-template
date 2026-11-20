@@ -60,7 +60,7 @@
 3. 把 `[a-z0-9-]` 之外的字符折叠为连字符。
 4. 去掉首尾连字符。
 
-收敛只要求 `^[a-z][a-z0-9-]*$`,而清单校验要求 3 到 64 字符;1 到 2 字符的收敛结果会在安装时按 `invalid-manifest` 拒绝,插件命名应保证收敛后长度不少于 3。
+收敛结果立即按清单规则 `^[a-z][a-z0-9-]{2,63}$` 校验,字符形态与长度在同一步判定:长度不在 3 到 64 之间、不以小写字母开头或含其他字符时,收敛即失败。离线包预检据此按 `invalid-manifest` 拒绝,原因说明指向插件命名而不是笼统的清单非法;在线安装与宿主直接注册同样按清单非法拒绝。插件命名应保证收敛后长度不少于 3。
 
 ### 2.4 示例
 
@@ -82,10 +82,10 @@ export const manifest: PluginManifest = {
 ## 3. 版本与依赖
 
 - `version` 是插件自身版本,只允许三段数字;与 `meta.json` 的 `version`、工程文件的 `version` 是三处独立声明,引擎不比对三者,分发时建议保持一致。
-- `engines` 与 dsc-core 版本比较,支持 `^`、`~`、`>=`、`<=` 与精确版本,也可写 `*`;只接受单段表达式,`>=1.0.0 <2.0.0` 这类组合范围不合法,安装结果为 `incompatible-version`。
+- `engines` 与 dsc-core 版本比较,支持 `^`、`~`、`>=`、`<=`、带 `=` 前缀的精确版本与不带前缀的精确版本,也可写 `*`;只接受单段表达式,`>=1.0.0 <2.0.0` 这类组合范围不合法,安装结果为 `incompatible-version`。
   - `^`:主版本一致且不低于下界。
   - `~`:主版本与次版本一致且不低于下界。
-  - `>=`、`<=`、精确版本:按三段数字比较。
+  - `>=`、`<=`、精确版本:按三段数字比较;`=1.0.0` 与 `1.0.0` 等价。
 - `engines` 缺省视为不限制。
 - 依赖与冲突按插件 id 判定,不比较版本;依赖在安装时必须已存在,在激活时必须已处于 `active`,否则激活失败。
 
@@ -106,12 +106,12 @@ export const manifest: PluginManifest = {
 | `dependencies.dsc` | 是 | 声明兼容的 dsc 版本文本 |
 | `attached` | 否 | 可选附加资源:`favicon` 为 URI,`intro_image` 为不重复的 URI 数组 |
 
-引擎对离线包的 `meta.json` 只做最小校验:`name`、`version`、`author` 非空,且 `version` 为三段数字,不满足按 `invalid-meta` 拒绝。构建时按 [运行时 meta Schema](../schemas/runtime/meta.json) 做完整自校验,比引擎更严,便于尽早发现问题。
+引擎对离线包的 `meta.json` 只做最小校验:`meta.json` 须是合法 UTF-8 且可解析,`name`、`version`、`author` 非空,`version` 为三段数字,`dependencies.dsc` 存在时须为单段版本范围,任一不满足按 `invalid-meta` 拒绝。构建时按 [运行时 meta Schema](../schemas/runtime/meta.json) 做完整自校验,比引擎更严,便于尽早发现问题。
 
 三条与清单的关系:
 
 - `meta.json` 的 `capabilities` 用于推导安装清单,与插件市场使用同一 id 规则;缺该字段、`capabilities` 不是非空字符串数组,或 `name` 无法收敛出插件 id 时,改用产物导出的 `manifest`;两者都没有时安装结果为 `invalid-manifest`。
-- 由 `meta.json` 推导清单时,`dependencies.dsc` 会被当作清单的 `engines` 使用。该字段必须写成清单接受的单段比较表达式,写成 `>=1.0.0 <2.0.0` 这类组合范围,即使符合 meta Schema 的 semver 描述,安装时仍会按 `incompatible-version` 拒绝。
+- 由 `meta.json` 推导清单时,`dependencies.dsc` 会被当作清单的 `engines` 使用。该字段必须写成清单接受的单段比较表达式:写成 `>=1.0.0 <2.0.0` 这类组合范围时,离线包预检阶段即按 `invalid-meta` 拒绝,原因说明指向该字段,不会走到清单侧;只有清单自身的 `engines` 写成组合范围时才返回 `incompatible-version`。
 - `dependencies.dsc` 与清单的 `engines` 是两个字段:前者在 meta Schema 中按 semver 文本描述,后者只接受单段比较表达式。
 
 ## 5. 作者签名与公钥位置
@@ -142,7 +142,7 @@ openssl pkeyutl -verify -pubin -inkey author_pub.pem -rawin -in plugin.js -sigfi
 - 逐字节语义:签名针对最终落盘的字节,签名后不得再改动被签文件;换行从 LF 变成 CRLF 就足以让验签失败。
 - 校验失败只提示,不阻断安装;记录标记为校验失败,启动恢复时重新校验。
 - 包内同时提供 `plugin.js.author.sig` 与 `author_pub.pem` 才校验;只提供其中一半时按未提供签名处理。
-- `meta.json` 的完整性由合集的三层哈希清单覆盖,作者不为它签名。上游文档把 `meta.json.author.sig` 列为作者签名产物,当前实现没有对应的验签路径,构建也不产出该文件,差异记录见 [规范区说明](README.md)。
+- `meta.json` 的完整性由合集的三层哈希清单覆盖,作者不为它签名:实现没有 `meta.json` 作者签名的验签路径,上游文档与构建也都不产出该签名文件。
 - 合集签名 `plugin.js.sig` 与各层 `manifest.json.sig` 由合集用 EEC 证书签发,作者不产出,也不要把 `.author.sig` 改名成 `.sig`。
 - 作者签名不需要证书;证书材料由合集维护,插件作者不签发、不续签、不替换任何证书。
 
@@ -154,7 +154,8 @@ openssl pkeyutl -verify -pubin -inkey author_pub.pem -rawin -in plugin.js -sigfi
 |:---:|:---:|
 | 地址 | `https` 任意主机,或 `http` 的本机回环地址 `localhost`、`127.0.0.1`、`[::1]`;其余协议与主机按 `load-failed` 拒绝 |
 | 取件 | 引擎用 `fetch` 取产物字节,`cache: 'no-store'`,按 UTF-8 文本保存 |
-| 体积 | 单个产物上限 1 MB,超出按 `package-too-large` 拒绝 |
+| 编码 | 取回的字节须能还原成原始字节;不是合法 UTF-8 文本时按 `load-failed` 拒绝,离线包对同一情形按 `corrupt-package` 拒绝(见 6.2) |
+| 体积 | 单个产物上限 2 MB(2097152 字节),在线安装与本地离线包共用同一上限,超出按 `package-too-large` 拒绝 |
 | 单文件 | 拆分出来的 chunk 与相对路径资源无法解析,第三方依赖必须内联 |
 | 更新 | 卸载后重新安装;启动恢复只用安装时保存的代码,不会重新取件 |
 
@@ -186,8 +187,8 @@ zip 的根目录就是产物目录的内容,不能再套一层目录;打包时�
 | 压缩包可解压 | `corrupt-package` |
 | 存在 `meta.json` | `missing-meta` |
 | 存在 `plugin.js` | `missing-plugin` |
-| `plugin.js` 不超过 1 MB | `package-too-large` |
-| `meta.json` 可解析,`name`、`version`、`author` 非空,版本为三段数字 | `invalid-meta` |
+| `plugin.js` 不超过 2 MB | `package-too-large` |
+| `meta.json` 是合法 UTF-8,可解析,`name`、`version`、`author` 非空,版本为三段数字,`dependencies.dsc` 为单段表达式 | `invalid-meta` |
 | `plugin.js` 是可还原的 UTF-8 文本 | `corrupt-package` |
 | 作者签名材料齐全时验签通过 | 不拒绝,记录标记为校验失败 |
 
@@ -202,6 +203,8 @@ pnpm run type                   # 类型检查
 node scripts/validate-specs.mjs # 清单与 meta 的 Schema 自检
 pnpm run build                  # 产出 plugin.js、meta.json,可选作者签名
 ```
+
+构建脚本只打印产物体积,不与 2 MB 上限比对,也不会因体积让构建失败;超限产物照样产出,要到宿主安装时才按 `package-too-large` 拒绝(见 6.1 与 6.2)。
 
 构建完成后在浏览器控制台执行一次 `import('https://你的地址/plugin.js')`,确认没有语法错误与缺失依赖;再在宿主的插件面板里装一次,确认激活、日志与停用都正常。
 
@@ -223,3 +226,9 @@ node scripts/validate-specs.mjs <meta.json> --schema meta # 校验单个运行�
 ```
 
 Schema 是静态校验,最终判定仍由宿主在安装时给出。清单 Schema 未列出的字段会被拒绝,宿主的清单读取只取已定义字段并忽略其余字段。
+
+## 历史版本列表
+
+本文档只维护最新版本,历史版本由本节的链接负责导航。
+
+本节为占位:仓库当前还没有发布标签,首个版本发布后在此按版本倒序列出,每个条目指向该版本标签下的本文档。

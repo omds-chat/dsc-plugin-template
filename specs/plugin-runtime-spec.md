@@ -10,13 +10,15 @@
 |:---:|:---:|
 | 文件数量 | 单个 js 文件,分发时只交付这一个文件 |
 | 模块格式 | 浏览器可直接 `import` 的 ESM;不得使用 `require`、Node 内置模块与打包器专用运行时占位 |
-| 编码 | UTF-8 文本,必须能还原成原始字节;不是合法 UTF-8 时安装结果为 `load-failed` |
-| 体积上限 | 1 MB(1048576 字节);在线安装与本地离线包共用同一上限,超出按 `package-too-large` 拒绝 |
+| 编码 | UTF-8 文本,必须能还原成原始字节;不是合法 UTF-8 时,在线安装结果为 `load-failed`,离线包预检结果为 `corrupt-package` |
+| 体积上限 | 2 MB(2097152 字节);在线安装与本地离线包共用同一上限,超出按 `package-too-large` 拒绝 |
 | 运行位置 | 页面主线程,可用浏览器 API,例如 `fetch`、`localStorage`、`setTimeout` |
 | 不可用 | Node 内置模块、后端接口、本地文件系统、宿主 DOM 与插槽 |
 | 依赖 | 不得新增运行依赖;第三方依赖内联进产物 |
 | 资源 | 样式、字体与图片内联,或在代码里用绝对地址按需请求 |
 | 存放与恢复 | 安装时取回字节,按 UTF-8 文本写入安装记录;加载时以 Blob 地址 `import`;启动恢复只用保存的代码,不访问网络 |
+
+体积上限在宿主里是一个字节常量,提示文案里的 MB 数由该常量派生;调整上限时改常量,并同步本节数字。
 
 产物以 Blob 地址加载,模块基址不是托管地址,因此 `import('./chunk.js')` 与 `new URL('./asset.png', import.meta.url)` 在安装后都无法解析,拆分代码与相对路径资源无效。
 
@@ -168,7 +170,7 @@
 | 版本不兼容 | 安装拒绝,`incompatible-version` |
 | 重名、缺依赖、冲突 | 安装拒绝,`duplicate`、`missing-dependency`、`conflict` |
 | 产物字节取不到 | 安装拒绝,`artifact-unreachable` |
-| 产物不是可存的 UTF-8 文本 | 安装拒绝,`load-failed` |
+| 产物不是可存的 UTF-8 文本 | 安装拒绝:在线安装 `load-failed`,离线包预检 `corrupt-package` |
 | 产物无法导入或导出不符 | 安装拒绝,`load-failed` 或 `invalid-plugin` |
 | 激活抛错或超时 | 插件标记 `failed`,引擎与其他插件继续运行 |
 | 未授予的能力被调用 | 抛 `PluginCapabilityError`,并提示 `pluginCapabilityDenied` |
@@ -194,3 +196,9 @@ node scripts/validate-specs.mjs <meta.json> --schema meta # 校验单个运行�
 ```
 
 Schema 是静态校验,最终以宿主安装时的校验结果为准。清单 Schema 未列出的字段会被拒绝,宿主的清单读取只取已定义的字段并忽略其余字段,因此 Schema 只用于尽早发现拼写与取值错误,不改变宿主的判定。
+
+## 历史版本列表
+
+本文档只维护最新版本,历史版本由本节的链接负责导航。
+
+本节为占位:仓库当前还没有发布标签,首个版本发布后在此按版本倒序列出,每个条目指向该版本标签下的本文档。

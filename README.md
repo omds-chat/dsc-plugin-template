@@ -30,7 +30,8 @@ dsc 插件开发模板:用 TypeScript 写源码,用 esbuild 打包成单个浏�
 | 先行代码实现 | [examples/session-digest/index.ts](examples/session-digest/index.ts) |
 
 - 规范以 DeepSeek-Chat-Enhanced 的 `dsc-plugin-engine` 实现为准,本仓库只做收拢与机器可校验化,不新增规则;两侧口径不一致时记录在 [specs/README.md](specs/README.md) 的「已知差异」。
-- 引用方按 `specs/spec-version.json` 的 `spec_version` 选定版本,并用 git 标签或提交固定,不要引用浮动分支;改规范时先改规范与 Schema,再升版本号。
+- 单个 `plugin.js` 不超过 2 MB(2097152 字节),在线安装与本地离线包共用同一上限,超出按 `package-too-large` 拒绝,细则见 [运行时规范](specs/plugin-runtime-spec.md) 1 与 [开发规范](specs/plugin-develop-spec.md) 6。
+- 引用方按 `specs/spec-version.json` 的 `spec_version` 选定版本,并在自身依赖里固定到具体标签或提交;文档内的链接一律指向最新文件,不在链接 URL 里写死标签名,历史版本由每份规范末尾的「历史版本列表」导航。改规范时先改规范与 Schema,再升版本号。
 - 校验命令:`node scripts/validate-specs.mjs`(自检),`node scripts/validate-specs.mjs <清单文件>`(校验单个清单),不联网、不安装依赖。
 
 ## 目录结构
@@ -142,7 +143,7 @@ dist/
 
 文件名按约定原样保留,`MUST_PLUSH_WITH_PACKAGE` 的拼写不要改成 `PUSH`。
 
-构建结束时脚本会打印每个产物的大小、压缩开关、签名状态,并检查 `dist/` 里没有预期之外的文件。文本产物(`meta.json`、`plugin.js`、`author_pub.pem`)按 LF 落盘,若检测到 CR 字节直接报错;`.author.sig` 是二进制签名,不参与换行检查。
+构建结束时脚本会打印每个产物的大小、压缩开关、签名状态,并检查 `dist/` 里没有预期之外的文件。打印体积只是信息,脚本不与 2 MB 上限比对,也不会因此让构建失败:超限产物照常产出,到宿主安装时才按 `package-too-large` 拒绝。文本产物(`meta.json`、`plugin.js`、`author_pub.pem`)按 LF 落盘,若检测到 CR 字节直接报错;`.author.sig` 是二进制签名,不参与换行检查。
 
 ## meta.json 生成规则
 
@@ -230,7 +231,7 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 | 签名 | 签名者 | 产物 | 信任来源 |
 |:---:|:---:|:---:|:---:|
 | 作者签名 | 插件作者 | `plugin.js.author.sig` | 作者公钥 `plugins/<作者>/author_pub.pem` |
-| 合集签名 | 插件合集 | `meta.json.sig`、`plugin.js.sig` | 根 CA 签发的合集证书 `eec.pem` |
+| 合集签名 | 插件合集 | `plugin.js.sig`、各层 `manifest.json.sig` | 根 CA 签发的合集证书 `eec.pem` |
 
 作者只负责产出 `.author.sig` 与 `author_pub.pem`。CMS 的 `*.sig` 由合集在收录时生成,作者不要自己产出,也不要把 `.author.sig` 改名成 `.sig`。
 
