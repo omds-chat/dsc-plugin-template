@@ -64,7 +64,7 @@ pnpm 12 默认不执行依赖的安装脚本,仓库里的 `pnpm-workspace.yaml` 
 ## 快速开始
 
 ```bash
-git clone https://github.com/omdsc-dev/dsc-plugin-template.git
+git clone https://github.com/omds-chat/dsc-plugin-template.git
 cd dsc-plugin-template
 pnpm install
 pnpm run type
@@ -127,8 +127,8 @@ dist/
 "dsc": {
   "engines": "^1.0.0",
   "description": { "zh-CN": "示例插件", "en-US": "Demo plugin" },
-  "home_page": "https://github.com/omdsc-dev/dsc-plugin-template",
-  "repo_link": "https://github.com/omdsc-dev/dsc-plugin-template"
+  "home_page": "https://github.com/omds-chat/dsc-plugin-template",
+  "repo_link": "https://github.com/omds-chat/dsc-plugin-template"
 }
 ```
 

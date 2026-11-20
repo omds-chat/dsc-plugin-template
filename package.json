@@ -5,7 +5,7 @@
   "type": "module",
   "description": "dsc 插件开发模板:TypeScript + esbuild,打包为单个浏览器 ESM 产物",
   "license": "Apache-2.0",
-  "author": "omdsc-dev",
+  "author": "omds-chat",
   "scripts": {
     "build": "node build.mjs",
     "type": "tsc --noEmit"
@@ -16,8 +16,8 @@
       "zh-CN": "dsc 插件开发模板",
       "en-US": "dsc plugin development template"
     },
-    "home_page": "https://github.com/omdsc-dev/dsc-plugin-template",
-    "repo_link": "https://github.com/omdsc-dev/dsc-plugin-template"
+    "home_page": "https://github.com/omds-chat/dsc-plugin-template",
+    "repo_link": "https://github.com/omds-chat/dsc-plugin-template"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

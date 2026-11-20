@@ -64,7 +64,7 @@ pnpm 12 does not run dependency install scripts by default; `pnpm-workspace.yaml
 ## Quick start
 
 ```bash
-git clone https://github.com/omdsc-dev/dsc-plugin-template.git
+git clone https://github.com/omds-chat/dsc-plugin-template.git
 cd dsc-plugin-template
 pnpm install
 pnpm run type
@@ -127,8 +127,8 @@ The `dsc` block in `package.json`:
 "dsc": {
   "engines": "^1.0.0",
   "description": { "zh-CN": "Demo plugin", "en-US": "Demo plugin" },
-  "home_page": "https://github.com/omdsc-dev/dsc-plugin-template",
-  "repo_link": "https://github.com/omdsc-dev/dsc-plugin-template"
+  "home_page": "https://github.com/omds-chat/dsc-plugin-template",
+  "repo_link": "https://github.com/omds-chat/dsc-plugin-template"
 }
 ```
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://omdsc-dev.github.io/dsc-plugin-template/schemas/runtime/meta.json",
+  "$id": "https://omds-chat.github.io/dsc-plugin-template/schemas/runtime/meta.json",
   "title": "dsc-plugin-runtime-meta",
   "description": "DSC 插件运行时元数据文件",
   "type": "object",
