@@ -1,12 +1,12 @@
 # dsc 插件规范区
 
-本目录与 [schemas/](../schemas/runtime/meta.json) 一起收拢 dsc 插件的运行时规范、开发规范、JSON Schema 与先行实现。规范内容来自 DeepSeek-Chat-Enhanced 的 `dsc-plugin-engine` 实现与其开发文档,本仓库只做收拢、机器可校验化与示例实现,不新增规则。
+本目录与 [schemas/](../schemas/runtime/meta.json) 一起收拢 dsc 插件的运行时规范、开发规范、JSON Schema 与先行实现。规范内容来自 DeepSeek-Chat-Enhanced 的 `dsc-plugin-engine` 实现与其开发文档,本仓库只做收拢、机器可校验化与示例实现,不新增规则;唯一例外是插件联网口径(见下节「权威来源与引用约定」),那是产品裁定,不是对实现的记述。
 
 ## 内容
 
 | 文件 | 内容 |
 |:---:|:---:|
-| [plugin-runtime-spec.md](plugin-runtime-spec.md) | 运行时规范:产物形态与体积上限、导出契约、生命周期与超时、能力与限流、上下文成员(可见范围、事件、提示与设置、插件数据、大体积数据与 IndexedDB、外源请求)、安全边界、错误降级 |
+| [plugin-runtime-spec.md](plugin-runtime-spec.md) | 运行时规范:产物形态与体积上限、导出契约、生命周期与超时、能力与限流、上下文成员(可见范围、事件、提示与设置、插件数据、大体积数据与 IndexedDB、联网与外源请求)、安全边界、错误降级 |
 | [plugin-develop-spec.md](plugin-develop-spec.md) | 开发规范:清单字段与校验、版本与依赖、运行时 meta、作者签名与公钥位置、分发要求 |
 | [spec-version.json](spec-version.json) | 规范版本与 Schema 路径,供其他仓库引用时锁定 |
 | [../schemas/manifest/plugin-manifest.schema.json](../schemas/manifest/plugin-manifest.schema.json) | 清单 Schema |
@@ -23,6 +23,7 @@
 - 本仓库是插件运行时规范、插件开发规范、JSON Schema 与示例的唯一源头:其他仓库不复制规范正文,只保留一段占位说明与指向本仓库的在线链接。
 - 跨仓库引用一律用在线 URL,形如 `https://github.com/omds-chat/dsc-plugin-template/blob/main/specs/plugin-runtime-spec.md`,不写相对路径。相对路径只在发出链接的仓库里成立,到了引用方仓库会指向错误位置,克隆、镜像与离线阅读都会失效。
 - 本仓库内部互相引用时才用相对路径,便于本地预览与链接检查;本仓库引用其他仓库的文档同样用在线 URL,不写 `../其他仓库/...`。
+- 插件联网采用产品裁定:插件联网必须受插件引擎管控,由引擎暴露的接口提供联网能力,细则见[运行时规范](plugin-runtime-spec.md) 5.5。该条不是对 `dsc-plugin-engine` 现有行为的记述:插件与宿主同源、跑在页面主线程,引擎在技术上无法阻止插件调用全局 `fetch`,因此按契约约束写入,违反属于不合规,会在收录审核与运行日志里被指出。它也不是「上游文档与实现不一致」,所以不列入下文「已知差异」表。
 
 ## 校验
 

@@ -10,7 +10,7 @@
 | [README.en-US.md](../README.en-US.md) | 上文的英文版,逐节对应 | 与中文版同构:模板能力、规范与 Schema、目录结构、构建、签名、安装、发布、FAQ | 读者以英文为主时;核对中英两版是否同步时 | 英文读者、维护者 |
 | [README.user.md](../README.user.md) | 面向普通用户的说明模板,由插件作者在自己的插件仓库里填写 | 插件用途、安装步骤、使用方法、隐私与安全告知、反馈渠道,正文为占位内容 | 发布插件前替换占位内容时;需要确认要向用户告知哪些事项时 | 插件作者(填写)、终端用户(阅读) |
 | [specs/README.md](../specs/README.md) | 规范区总索引与口径留痕处 | 规范区文件清单、权威来源与引用约定、校验命令、已知差异表(上游文档口径与实现口径的对照)、语言约定、历史版本列表 | 引用本规范前确认版本与权威来源时;发现文档与实现不一致、需要查是否已留痕时 | 引用方、规范维护者、宿主开发者 |
-| [specs/plugin-runtime-spec.md](../specs/plugin-runtime-spec.md) | 插件在宿主中如何运行 | 产物形态(单文件 ESM、UTF-8、2 MB 上限、Blob 加载)、导出契约与清单优先级、生命周期与超时、能力与限流、上下文成员(可见数据范围、事件与贡献点、提示与设置、插件数据、大体积数据与 IndexedDB、外源请求)、安全边界、错误与降级、校验方式 | 写 activate 与 deactivate、申请能力、处理超时与取消、判断插件能看到哪些数据时 | 插件作者、宿主实现者、评审者 |
+| [specs/plugin-runtime-spec.md](../specs/plugin-runtime-spec.md) | 插件在宿主中如何运行 | 产物形态(单文件 ESM、UTF-8、2 MB 上限、Blob 加载)、导出契约与清单优先级、生命周期与超时、能力与限流、上下文成员(可见数据范围、事件与贡献点、提示与设置、插件数据、大体积数据与 IndexedDB、联网与外源请求)、安全边界、错误与降级、校验方式 | 写 activate 与 deactivate、申请能力、处理超时与取消、判断插件能看到哪些数据时 | 插件作者、宿主实现者、评审者 |
 | [specs/plugin-develop-spec.md](../specs/plugin-develop-spec.md) | 插件如何编写、签名与分发 | 开发约束、清单字段与校验规则、校验顺序与结果、清单 id 收敛、版本与依赖、运行时 meta、作者签名与公钥位置、分发要求(从地址安装、离线包、分发前自检)、用户告知、校验方式 | 定义或修改清单、决定版本与依赖、准备签名、打包与上线前自检时 | 插件作者、发布者、评审者 |
 | [specs/spec-version.json](../specs/spec-version.json) | 规范版本与 Schema 路径的唯一登记处 | spec_version、对应的宿主版本 dsc_core、两份 Schema 的仓库内路径 | 引用方锁定版本时;改规范后需要升版本号时;脚本定位 Schema 时 | 引用方、规范维护者、脚本作者 |
 | [schemas/manifest/plugin-manifest.schema.json](../schemas/manifest/plugin-manifest.schema.json) | 插件清单的机器可校验定义 | JSON Schema 2020-12 的清单结构:必填字段、id 与版本格式、engines 范围、capabilities 与 contributions 枚举、附加字段限制 | 需要自动校验清单时;把清单规则写进工具或 CI 时;核对字段合法性时 | 引用方、工具作者、插件作者 |

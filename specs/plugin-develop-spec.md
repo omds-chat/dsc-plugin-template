@@ -4,7 +4,7 @@
 
 ## 1. 开发约束
 
-- 纯前端运行:只用浏览器 API,不引入 Node 内置模块、后端接口与新增依赖。
+- 纯前端运行:只用浏览器 API,不引入 Node 内置模块、后端接口与新增依赖;联网只走 `context.net`,见[运行时规范](plugin-runtime-spec.md) 5.5。
 - 不直接访问内核:插件拿不到 `dsc-core` 的 `CoreApi`、`zustand` store 句柄与 IndexedDB 句柄,只能使用 `context` 上的受限能力对象。这里的 IndexedDB 句柄指宿主的库;插件自己的大体积数据(资产快照、缓存)用浏览器的 `indexedDB` 自建库,存放与配额见[运行时规范](plugin-runtime-spec.md) 5.6。
 - 不直接操作宿主 DOM:`context` 未提供 DOM 或插槽接口,界面提示统一走 `context.ui.notify`。
 - 用户可见文案使用宿主文案键:`notify` 的 `key` 取自宿主 i18n 的既有键,不硬编码中英文句子。
@@ -36,7 +36,7 @@
 |:---:|:---:|
 | `sessions:list`、`sessions:read`、`sessions:rename`、`events:session`、`notify`、`settings:locale` | 全部插件 |
 | `plugins:storage` | 全部插件 |
-| `net:fetch` | 仅内置插件,第三方申请按 `unknown-capability` 拒绝 |
+| `net:fetch` | 仅内置插件,第三方申请按 `unknown-capability` 拒绝;插件也不得自建网络通道,见[运行时规范](plugin-runtime-spec.md) 5.5 |
 
 ### 2.2 校验顺序与结果
 

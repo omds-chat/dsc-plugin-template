@@ -29,9 +29,9 @@ dsc 插件开发模板:用 TypeScript 写源码,用 esbuild 打包成单个浏�
 | 运行时 meta Schema | [schemas/runtime/meta.json](schemas/runtime/meta.json) |
 | 先行代码实现 | [examples/session-digest/index.ts](examples/session-digest/index.ts) |
 
-- 规范以 DeepSeek-Chat-Enhanced 的 `dsc-plugin-engine` 实现为准,本仓库只做收拢与机器可校验化,不新增规则;两侧口径不一致时记录在 [specs/README.md](specs/README.md) 的「已知差异」。
+- 规范以 DeepSeek-Chat-Enhanced 的 `dsc-plugin-engine` 实现为准,本仓库只做收拢与机器可校验化,不新增规则;两侧口径不一致时记录在 [specs/README.md](specs/README.md) 的「已知差异」。唯一例外是插件联网口径:插件联网受引擎管控,由引擎暴露的接口提供联网能力,该条按产品裁定写入,不是对实现的记述,见[运行时规范](specs/plugin-runtime-spec.md) 5.5。
 - 单个 `plugin.js` 不超过 2 MB(2097152 字节),在线安装与本地离线包共用同一上限,超出按 `package-too-large` 拒绝,细则见 [运行时规范](specs/plugin-runtime-spec.md) 1 与 [开发规范](specs/plugin-develop-spec.md) 6。
-- 宿主对插件的各项限制集中在 [运行时规范](specs/plugin-runtime-spec.md):代码文本上限与计量口径见 1,能力与各项限流见 4,插件数据的 64KB 额度、键名上限与 IndexedDB 分界见 5.4 与 5.6,外源请求的地址与体积约束见 5.5;离线包与地址分发共用同一套体积判定,见 [开发规范](specs/plugin-develop-spec.md) 6。
+- 宿主对插件的各项限制集中在 [运行时规范](specs/plugin-runtime-spec.md):代码文本上限与计量口径见 1,能力与各项限流见 4,插件数据的 64KB 额度、键名上限与 IndexedDB 分界见 5.4 与 5.6,联网与外源请求的规则见 5.5;离线包与地址分发共用同一套体积判定,见 [开发规范](specs/plugin-develop-spec.md) 6。
 - 引用方按 `specs/spec-version.json` 的 `spec_version` 选定版本,并在自身依赖里固定到具体标签或提交;文档内的链接一律指向最新文件,不在链接 URL 里写死标签名,历史版本由每份规范末尾的「历史版本列表」导航。改规范时先改规范与 Schema,再升版本号。
 - 校验命令:`node scripts/validate-specs.mjs`(自检),`node scripts/validate-specs.mjs <清单文件>`(校验单个清单),不联网、不安装依赖。
 
@@ -318,7 +318,7 @@ cp .env.example .env
 | `settings:locale` | `context.settings.locale` | 60 次 / 10 秒 |
 | `plugins:storage` | `context.storage` | 100 次 / 10 秒,单插件 64KB |
 
-`net:fetch` 仅内置插件可申请,第三方插件在清单里写它会被拒绝。
+联网受引擎管控:插件不得自行调用全局 `fetch`、`XMLHttpRequest`、`WebSocket` 等网络接口取数据,联网必须走宿主提供的网络能力,目前是 `net:fetch`(`context.net.getText`、`context.net.postJson`)。`net:fetch` 仅内置插件可申请,第三方插件在清单里写它会被拒绝;第三方插件需要联网时,由宿主决定是否开放。插件与宿主同源、跑在页面主线程,引擎无法在技术上阻止插件直接调用全局 `fetch`,所以这是一条契约约束而非沙箱拦截:违反属于不合规,会在收录审核与运行日志里被指出。细则见[运行时规范](specs/plugin-runtime-spec.md) 5.5 与 6。
 
 - 限流按插件实例独立计数,窗口统一为 10 秒;异步能力的单次超时、引擎自用的两个能力标识见[运行时规范](specs/plugin-runtime-spec.md) 4。
 - `plugins:storage` 的 64KB 是整个插件全部键值的合计,不按单个键计算;键名上限 64 个字符。资产快照、缓存这类大体积数据不要放进来,改存浏览器的 IndexedDB:它不占这 64KB,宿主也不设逐插件上限,但仍受浏览器源配额约束,细则见[运行时规范](specs/plugin-runtime-spec.md) 5.4 与 5.6。
