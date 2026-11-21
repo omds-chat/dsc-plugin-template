@@ -258,15 +258,15 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 
 ## 把产物装进 DeepSeek-Chat-Enhanced
 
-用于在本机验证构建结果:
+用于在本地验证构建结果:
 
-1. 用本机静态服务器提供 `dist/` 目录,例如 `http://localhost:8090/`。
+1. 用本地静态服务器提供 `dist/` 目录,例如 `http://localhost:8090/`。
 2. 在插件面板的「从地址安装」中填入 `plugin.js` 的地址并安装;安装成功后插件自动激活,状态显示为「运行中」。
 3. 打开「查看日志」可以看到 `context.log` 写入的内容,切换会话后日志会追加一条。
 
 面向普通用户的说明见 [README.user.md](README.user.md)。
 
-地址规则:分发给用户时使用 `https://` 地址。本机调试时 DeepSeek-Chat-Enhanced 允许 `http://localhost`、`http://127.0.0.1` 与 `http://[::1]`,其余地址必须是 `https://`。
+地址规则:分发给用户时使用 `https://` 地址。本地调试时 DeepSeek-Chat-Enhanced 允许 `http://localhost`、`http://127.0.0.1` 与 `http://[::1]`,其余地址必须是 `https://`。
 
 安装记录会保存产物的代码文本,启动恢复不再取件;产物改动后需要先在面板卸载再重新安装,才会重新取回新字节。
 
@@ -280,13 +280,13 @@ openssl pkeyutl -verify -pubin -inkey dist/author_pub.pem -rawin -in dist/plugin
 cp .env.example .env
 ```
 
-| 变量 | 本机取值 | 说明 |
+| 变量 | 本地取值 | 说明 |
 |:---:|:---:|:---:|
 | `DS_CHAT_PAGES_LINK` | `http://127.0.0.1:61117` | 对话页面地址 |
 | `DSC_INNER_PLUGIN_PAGES_LINK` | `http://127.0.0.1:61118` | 内测插件页地址 |
 | `AWESOME_DSC_PLUGIN_PAGES_LINK` | `http://127.0.0.1:61119` | 插件合集页地址 |
 
-这三个取值是本地联调用的本机地址,不是分发地址;对外分发仍按上文规则使用 `https://`。
+这三个取值是本地联调用的回环地址,不是分发地址;对外分发仍按上文规则使用 `https://`。
 
 模板仓库只消费这些地址做联调,不写入产物:`build.mjs` 不读取它们,`dist/` 下的文件与 `meta.json` 都不含这些取值。`.env` 已被 `.gitignore` 忽略,不会进 git;`.env.example` 随仓库提交,只放示例取值。
 

@@ -168,7 +168,7 @@ openssl pkeyutl -verify -pubin -inkey author_pub.pem -rawin -in plugin.js -sigfi
 
 | 项 | 规定 |
 |:---:|:---:|
-| 地址 | `https` 任意主机,或 `http` 的本机回环地址 `localhost`、`127.0.0.1`、`[::1]`;其余协议与主机按 `load-failed` 拒绝 |
+| 地址 | `https` 任意主机,或 `http` 的回环地址 `localhost`、`127.0.0.1`、`[::1]`;其余协议与主机按 `load-failed` 拒绝 |
 | 取件 | 引擎用 `fetch` 取产物字节,`cache: 'no-store'`,按 UTF-8 文本保存 |
 | 编码 | 取回的字节须能还原成原始字节;不是合法 UTF-8 文本时按 `load-failed` 拒绝,离线包对同一情形按 `corrupt-package` 拒绝(见 6.2) |
 | 体积 | 单个产物上限 2 MB(2097152 字节),在线安装与本地离线包共用同一上限,超出按 `package-too-large` 拒绝 |
