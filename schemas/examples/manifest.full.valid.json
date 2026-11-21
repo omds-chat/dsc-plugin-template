@@ -16,9 +16,11 @@
     "events:session",
     "notify",
     "settings:locale",
-    "plugins:storage"
+    "plugins:storage",
+    "chat:request"
   ],
-  "contributions": [
-    "session:changed"
+  "mounts": [
+    "session:changed",
+    "chat:before-request"
   ]
 }

@@ -296,13 +296,14 @@ The manifest lives in [src/manifest.ts](src/manifest.ts) and is re-exported by [
 | `dependencies` | no | Required plugin ids, present at install time and active at activation time |
 | `conflicts` | no | Conflicting plugin ids, installing both is rejected |
 | `capabilities` | yes | Requested capabilities, no duplicates |
-| `contributions` | no | Subscribed contribution points, the only value is `session:changed` |
+| `mounts` | no | Subscribed mount points, the allowed values are `session:changed` and `chat:before-request` |
 
 Things to keep in mind:
 
 - `id` is globally unique; a second plugin with the same id is rejected.
 - `version` is the plugin version and is unrelated to the version in `package.json`.
 - `capabilities` may only contain names from the capability table; unknown or duplicate entries make the install fail.
+- `mounts` may only contain names from the mount point table; duplicate entries make the install fail, and an unknown mount point is rejected by the engine with the error code `unknown-mount`.
 - The DeepSeek-Chat-Enhanced source is the authority for the contract; `src/types.ts` covers only the fields the template uses, so check the source for anything else.
 - The full field and validation rules are in [specs/plugin-develop-spec.md](specs/plugin-develop-spec.md); check a manifest with `node scripts/validate-specs.mjs <manifest file>`.
 
@@ -324,7 +325,7 @@ Networking is governed by the engine: a plugin must not call global `fetch`, `XM
 - The 64KB `plugins:storage` quota is the total for all keys of one plugin, not per key, and a key name holds at most 64 characters. Keep asset snapshots and caches out of it and use the browser's IndexedDB instead: it does not count against the 64KB, the host sets no per-plugin IndexedDB limit, and it is still bound by the browser's origin quota. Details are in [runtime spec](specs/plugin-runtime-spec.md) 5.4 and 5.6.
 - Code size: a single `plugin.js` must stay within 2 MB (2097152 bytes), the same limit for URL installs and offline packages, see [runtime spec](specs/plugin-runtime-spec.md) 1.
 
-The template requests `events:session` and `notify`, and subscribes to the single contribution point `session:changed`.
+The template requests `events:session` and `notify`, and subscribes to the single mount point `session:changed`.
 
 ## Publishing
 

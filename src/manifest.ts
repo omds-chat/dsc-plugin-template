@@ -9,5 +9,5 @@ export const manifest: PluginManifest = {
   version: '0.1.0',
   engines: '^1.0.0',
   capabilities: ['events:session', 'notify'],
-  contributions: ['session:changed'],
+  mounts: ['session:changed'],
 }

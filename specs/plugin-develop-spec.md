@@ -26,7 +26,9 @@
 | `dependencies` | 否 | 插件 id 数组,安装时须已存在,激活时须已激活 | `missing-dependency` |
 | `conflicts` | 否 | 插件 id 数组,任一已安装即拒绝 | `conflict` |
 | `capabilities` | 是 | 能力表内的名字,不得重复 | `invalid-manifest`(重复)、`unknown-capability`(未知或第三方申请 `net:fetch`) |
-| `contributions` | 否 | 贡献点名字,当前只有 `session:changed`,不得重复 | `invalid-manifest`(重复)、`unknown-contribution`(未知) |
+| `mounts` | 否 | 挂载点名字,取自挂载点表,不得重复 | `invalid-manifest`(重复)、`unknown-mount`(未知) |
+
+未知挂载点由引擎拒绝,错误码为 `unknown-mount`。
 
 清单的形态收敛另有一条:读取清单时 `id`、`name`、`version` 必须是字符串,`capabilities` 必须是字符串数组,其余四个字段要么缺省,要么是字符串数组;不符合这些形态时按清单缺失处理,安装结果为 `invalid-manifest`。
 
@@ -35,8 +37,18 @@
 | 能力 | 可见范围 |
 |:---:|:---:|
 | `sessions:list`、`sessions:read`、`sessions:rename`、`events:session`、`notify`、`settings:locale` | 全部插件 |
-| `plugins:storage` | 全部插件 |
+| `assets:read`、`plugins:storage` | 全部插件 |
+| `chat:request`、`provider:source` | 全部插件 |
 | `net:fetch` | 仅内置插件,第三方申请按 `unknown-capability` 拒绝;插件也不得自建网络通道,见[运行时规范](plugin-runtime-spec.md) 5.5 |
+
+`chat:request` 只服务 `context.chat.onBeforeRequest`:登记请求前处理器时,清单须同时申请该能力与挂载点 `chat:before-request`,缺任一项抛 `PluginCapabilityError`。`provider:source` 约束的是能否声明供应端点,登记入口为 `context.provider.registerSource`;执行由引擎按端点描述发起,插件拿不到执行侧的标识。
+
+挂载点表:
+
+| 挂载点 | 触发时机 | 声明与订阅 |
+|:---:|:---:|:---:|
+| `session:changed` | 会话内容变化 | 清单写 `mounts`,处理器经 `context.events.on` 登记 |
+| `chat:before-request` | 每次发请求前同步调用一次,返回补丁 | 清单同时写 `mounts` 与能力 `chat:request`,处理器经 `context.chat.onBeforeRequest` 登记 |
 
 ### 2.2 校验顺序与结果
 
@@ -44,8 +56,8 @@
 |:---:|:---:|:---:|
 | 1 | `id`、`name`、`version` 与 `capabilities` 的重复项 | `invalid-manifest` |
 | 2 | 每个能力是否在能力表内;`net:fetch` 是否属于内置插件 | `unknown-capability` |
-| 3 | `contributions` 的重复项 | `invalid-manifest` |
-| 4 | 每个贡献点是否在贡献点表内 | `unknown-contribution` |
+| 3 | `mounts` 的重复项 | `invalid-manifest` |
+| 4 | 每个挂载点是否在挂载点表内 | `unknown-mount` |
 | 5 | 同 id 是否已有插件实例 | `duplicate` |
 | 6 | `engines` 是否匹配 dsc-core 版本 | `incompatible-version` |
 | 7 | `conflicts` 中的 id 是否已安装 | `conflict` |
@@ -73,7 +85,7 @@ export const manifest: PluginManifest = {
   version: '0.1.0',
   engines: '^1.0.0',
   capabilities: ['sessions:read', 'events:session', 'plugins:storage'],
-  contributions: ['session:changed'],
+  mounts: ['session:changed'],
 }
 ```
 

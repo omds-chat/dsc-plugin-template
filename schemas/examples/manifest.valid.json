@@ -7,7 +7,7 @@
     "events:session",
     "notify"
   ],
-  "contributions": [
+  "mounts": [
     "session:changed"
   ]
 }

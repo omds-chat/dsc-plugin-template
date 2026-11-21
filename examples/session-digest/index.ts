@@ -147,7 +147,7 @@ export const activate = async (context: PluginContext): Promise<void> => {
 }
 
 /**
- * 停用入口,超时 3 秒;之后引擎自动执行 events.on 返回的释放函数并清空贡献点,
+ * 停用入口,超时 3 秒;之后引擎自动执行 events.on 返回的释放函数并清空挂载点,
  * 这里只取消在途调用并丢弃本地引用,不重复调用释放函数。
  */
 export const deactivate = (): void => {

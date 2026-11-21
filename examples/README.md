@@ -4,7 +4,7 @@
 
 | 规范要点 | 代码位置 |
 |:---:|:---:|
-| 清单导出:必填字段、能力申请、贡献点声明 | [session-digest/manifest.ts](session-digest/manifest.ts) |
+| 清单导出:必填字段、能力申请、挂载点声明 | [session-digest/manifest.ts](session-digest/manifest.ts) |
 | 产物保留具名 `manifest` 与 `activate` 导出 | [session-digest/index.ts](session-digest/index.ts) |
 | 激活与停用:异步入口、重复激活去重、返回值不传释放函数 | `activate` 与 `deactivate` |
 | 依赖注入的上下文成员:`context.id`、`context.version`、`context.log` | `activate` 首段 |

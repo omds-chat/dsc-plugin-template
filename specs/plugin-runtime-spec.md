@@ -52,19 +52,19 @@
 |:---:|:---:|
 | `registered` | 已登记,尚未启动 |
 | `active` | 已激活,能力可用 |
-| `inactive` | 已停用,贡献点与释放函数已撤销 |
+| `inactive` | 已停用,挂载点与释放函数已撤销 |
 | `failed` | 启动失败,原因写入插件日志与错误字段 |
 
 | 操作 | 前置条件 | 超时 | 结果 |
 |:---:|:---:|:---:|:---:|
 | 安装 | 清单校验通过 | 模块导入 10 秒 | 登记为 `registered`;从地址与离线包安装成功后自动激活,宿主直接注册只登记;地址不合法、导入失败或导出不符为 `load-failed`、`invalid-plugin` |
 | `activate` | 依赖插件均已 `active` | 5 秒 | `active`;抛错、超时或依赖未激活为 `failed` |
-| `deactivate` | 状态为 `active` | 3 秒 | `inactive`;先调插件 `deactivate`,再执行释放函数并清空贡献点 |
+| `deactivate` | 状态为 `active` | 3 秒 | `inactive`;先调插件 `deactivate`,再执行释放函数并清空挂载点 |
 | `unload` | 没有已激活的下游依赖 | — | 移除注册表与安装记录;有下游依赖时拒绝 |
 
 - 同一插件的启停与卸载排队执行;对已 `active` 的插件再调 `activate` 直接返回成功。
-- 激活抛错或超时:清空已注册的贡献点、执行释放函数,再标记 `failed`;引擎与其他插件继续运行。
-- 停用抛错或超时:错误只写入该插件日志,仍执行释放函数、清空贡献点并置 `inactive`。
+- 激活抛错或超时:清空已注册的挂载点、执行释放函数,再标记 `failed`;引擎与其他插件继续运行。
+- 停用抛错或超时:错误只写入该插件日志,仍执行释放函数、清空挂载点并置 `inactive`。
 - 卸载不清除插件数据,返回值里的 `hasLeftoverData` 供界面提示清理入口。
 - 启动恢复逐个插件隔离,单个插件失败只标记 `failed`,不阻塞其他插件与页面渲染。
 
@@ -98,7 +98,7 @@
 | `context.sessions.list(options?)` | `Promise<SessionSummary[]>` | 会话摘要只读视图 |
 | `context.sessions.read(id, options?)` | `Promise<SessionView \| null>` | 会话内容只读视图,不存在时为 `null` |
 | `context.sessions.rename(id, title)` | `boolean` | 同步调用 |
-| `context.events.on(point, handler)` | 释放函数 | 订阅贡献点,释放函数由引擎执行 |
+| `context.events.on(point, handler)` | 释放函数 | 订阅挂载点,释放函数由引擎执行 |
 | `context.ui.notify(key, params?)` | 无返回 | 宿主提示,key 取自宿主 i18n 既有文案键 |
 | `context.settings.locale(options?)` | `Promise<'zh-CN' \| 'en-US'>` | 当前语言 |
 | `context.storage.get(key)` | `unknown` | 缺失的键返回 `null` |
@@ -121,7 +121,7 @@
 
 不可见:API Key、附件的本地 id 与服务端 file_id、附件原件、请求快照、分支内部结构、其他插件的本地数据、请求 Cookie。
 
-### 5.2 事件与贡献点
+### 5.2 事件与挂载点
 
 - 只有清单声明了 `session:changed` 才能调用 `context.events.on('session:changed', handler)`,否则抛 `PluginCapabilityError`。
 - `on` 返回释放函数;引擎在停用、卸载与激活失败时自动执行,插件不要重复调用。
@@ -188,7 +188,7 @@
 - 句柄与浏览器 API 的分界:这里的「拿不到 IndexedDB 句柄」指宿主的库与事务;插件仍可用浏览器的 `indexedDB` 自建库存大体积数据(见 5.6),那是插件自己的数据,宿主不代管、不计量、不清理。
 - 联网不自建通道:插件联网只能走 `context.net`(`net:fetch`),不得自行调用全局 `fetch`、`XMLHttpRequest`、`WebSocket` 等接口。引擎无法在技术上拦截同源代码的全局 `fetch`,本条靠契约与审核落实,违反属于不合规,见 5.5。
 - 凭证与票据:引擎持有调用凭证,每次调用签发一张一次性票据,票据有效期 5 秒,核心消费后作废。绕过 `context` 直接调用核心会因缺少票据被拒,引擎记录旁路事件(保留 50 条),并按 3 秒的最小间隔提示 `pluginBypassDetected`。
-- 能力双层校验:安装时按清单校验能力与贡献点,调用时按清单再校验一次;未申请的能力不可用。
+- 能力双层校验:安装时按清单校验能力与挂载点,调用时按清单再校验一次;未申请的能力不可用。
 - 数据隔离:插件数据按插件 id 隔离,只能读写自己的键值。
 - 日志隔离:插件日志保存在内存,单插件上限 100 条,经面板或引擎接口读取,不写浏览器控制台。
 - 文案约束:用户可见提示复用宿主文案键,插件不自造文案。
@@ -198,7 +198,7 @@
 | 情形 | 行为 |
 |:---:|:---:|
 | 清单非法 | 安装拒绝,`invalid-manifest` |
-| 能力或贡献点未知 | 安装拒绝,`unknown-capability` 或 `unknown-contribution` |
+| 能力或挂载点未知 | 安装拒绝,`unknown-capability` 或 `unknown-mount` |
 | 版本不兼容 | 安装拒绝,`incompatible-version` |
 | 重名、缺依赖、冲突 | 安装拒绝,`duplicate`、`missing-dependency`、`conflict` |
 | 产物字节取不到 | 安装拒绝,`artifact-unreachable` |
@@ -212,6 +212,8 @@
 | 调用被取消 | 抛 `PluginAbortError` |
 | 事件处理器抛错 | 只写入该插件日志,不影响其他处理器 |
 | 插件数据超限或无法序列化 | 抛 `PluginDataError`,并提示 `pluginDataQuotaExceeded`、`pluginDataUnavailable` 或 `pluginDataInvalid` |
+
+未知挂载点由引擎拒绝,错误码为 `unknown-mount`。挂载点表当前为 `session:changed` 与 `chat:before-request`,后者需同时申请能力 `chat:request`,见[开发规范](plugin-develop-spec.md) 2.1。
 
 ## 8. 校验方式
 

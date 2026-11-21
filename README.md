@@ -296,13 +296,14 @@ cp .env.example .env
 | `dependencies` | 否 | 依赖的插件 id,安装时须已存在,激活时须已激活 |
 | `conflicts` | 否 | 冲突的插件 id,同时安装会被拒绝 |
 | `capabilities` | 是 | 申请的能力,不得重复 |
-| `contributions` | 否 | 订阅的贡献点,可选值为 `session:changed` |
+| `mounts` | 否 | 订阅的挂载点,可选值为 `session:changed`、`chat:before-request` |
 
 改清单时的注意事项:
 
 - `id` 全局唯一,重复安装会被拒绝。
 - `version` 是插件版本,与 `package.json` 中的版本无关。
 - `capabilities` 只写能力表内的名字,未知或重复的能力会让安装被拒绝。
+- `mounts` 只写挂载点表内的名字,重复声明会让安装被拒绝;未知挂载点由引擎拒绝,错误码为 `unknown-mount`。
 - 契约以 DeepSeek-Chat-Enhanced 源码为准;`src/types.ts` 只覆盖模板用到的字段,缺的字段请查源码。
 - 字段与校验规则的完整说明见 [specs/plugin-develop-spec.md](specs/plugin-develop-spec.md),可用 `node scripts/validate-specs.mjs <清单文件>` 校验。
 
@@ -324,7 +325,7 @@ cp .env.example .env
 - `plugins:storage` 的 64KB 是整个插件全部键值的合计,不按单个键计算;键名上限 64 个字符。资产快照、缓存这类大体积数据不要放进来,改存浏览器的 IndexedDB:它不占这 64KB,宿主也不设逐插件上限,但仍受浏览器源配额约束,细则见[运行时规范](specs/plugin-runtime-spec.md) 5.4 与 5.6。
 - 代码体积:单个 `plugin.js` 不超过 2 MB(2097152 字节),在线安装与离线包同一上限,见[运行时规范](specs/plugin-runtime-spec.md) 1。
 
-模板默认申请 `events:session` 与 `notify` 两项能力,只订阅 `session:changed` 一个贡献点。
+模板默认申请 `events:session` 与 `notify` 两项能力,只订阅 `session:changed` 一个挂载点。
 
 ## 发布
 

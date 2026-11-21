@@ -17,5 +17,5 @@ export const manifest: PluginManifest = {
     'settings:locale',
     'plugins:storage',
   ],
-  contributions: ['session:changed'],
+  mounts: ['session:changed'],
 }

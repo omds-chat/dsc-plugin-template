@@ -31,17 +31,17 @@
     },
     "capabilities": {
       "type": "array",
-      "description": "申请的能力,不得重复;net:fetch 只对内置插件开放",
+      "description": "申请的能力,不得重复;net:fetch 只对内置插件开放;provider:source 与 chat:request 也在能力表内",
       "items": {
         "$ref": "#/$defs/capability"
       },
       "uniqueItems": true
     },
-    "contributions": {
+    "mounts": {
       "type": "array",
-      "description": "订阅的贡献点,不得重复;当前只有 session:changed",
+      "description": "订阅的挂载点,不得重复;可选 session:changed 与 chat:before-request,未知挂载点按 unknown-mount 拒绝",
       "items": {
-        "$ref": "#/$defs/contribution"
+        "$ref": "#/$defs/mount"
       },
       "uniqueItems": true
     }
@@ -99,14 +99,18 @@
         "events:session",
         "notify",
         "settings:locale",
+        "net:fetch",
+        "assets:read",
         "plugins:storage",
-        "net:fetch"
+        "chat:request",
+        "provider:source"
       ]
     },
-    "contribution": {
+    "mount": {
       "type": "string",
       "enum": [
-        "session:changed"
+        "session:changed",
+        "chat:before-request"
       ]
     }
   }
