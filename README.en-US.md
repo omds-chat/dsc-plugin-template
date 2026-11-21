@@ -174,6 +174,11 @@ At the end the build prints the size of every output, the minify switch and the 
 | `dependencies.dsc` | `dsc.engines` | yes |
 | `home_page` | `dsc.home_page`, omitted when absent | no |
 | `attached` | `dsc.attached`, omitted when absent | no |
+| `capabilities` | `dsc.capabilities`, omitted when absent | no |
+| `mounts` | `dsc.mounts`, omitted when absent | no |
+| `conflicts` | `dsc.conflicts`, omitted when absent | no |
+
+The build copies `capabilities`, `mounts` and `conflicts` through verbatim: whatever the `dsc` block in `package.json` declares is written to `meta.json`, a field that is not declared is not written, and the build neither adds empty arrays nor rewrites values. Values must still stay inside the schema — capability names from the capability table, mount point names from the mount point table, and `conflicts` entries as plugin ids — and an invalid value fails the build. Fields added by hand under `dist/` are not preserved, because `meta.json` is regenerated from `package.json` on every build.
 
 The `dsc` block in `package.json`:
 
@@ -182,7 +187,9 @@ The `dsc` block in `package.json`:
   "engines": "^1.0.0",
   "description": { "zh-CN": "Demo plugin", "en-US": "Demo plugin" },
   "home_page": "https://github.com/omds-chat/dsc-plugin-template",
-  "repo_link": "https://github.com/omds-chat/dsc-plugin-template"
+  "repo_link": "https://github.com/omds-chat/dsc-plugin-template",
+  "capabilities": ["events:session", "notify"],
+  "mounts": ["session:changed"]
 }
 ```
 

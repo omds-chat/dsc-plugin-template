@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://omds-chat.github.io/dsc-plugin-template/schemas/runtime/meta.json",
   "title": "dsc-plugin-runtime-meta",
-  "description": "DSC 插件运行时元数据文件",
+  "description": "DSC 插件运行时元数据文件。字段与读取口径以 DeepSeek-Chat-Enhanced 的 dsc-plugin-engine 与 dsc-market 实现为准:离线包预检读 name、version、author、license、description、capabilities 与 dependencies.dsc;市场另外读 repo_link、home_page 与 mounts。清单的 engines 取自 dependencies.dsc,清单的 dependencies(插件 id 列表)与 conflicts 不从本文件推导。",
   "type": "object",
   "properties": {
     "name": {
@@ -31,11 +31,26 @@
     },
     "capabilities": {
       "type": "array",
-      "description": "可选的能力声明。离线包装安装时用它推导插件清单,缺省或形态不合法时改用产物导出的 manifest;net:fetch 只对内置插件开放。",
+      "description": "可选的能力声明。离线包装安装时用它推导插件清单,缺省或形态不合法时改用产物导出的 manifest;市场由 meta.json 推导清单时也读它,遇到能力表之外的名字会整份放弃该字段,同样回落到产物清单。重复项在两条路径上都会被去重。net:fetch 只对内置插件开放,第三方声明会在清单校验阶段按 unknown-capability 拒绝。",
       "items": {
         "$ref": "#/$defs/capability"
       },
       "uniqueItems": true
+    },
+    "mounts": {
+      "type": "array",
+      "description": "可选的挂载点声明。市场由 meta.json 推导清单时会读它,写进安装清单的 mounts;离线包推导当前不读该字段,包里写了也不影响推导结果,缺省时由产物导出的 manifest.mounts 补齐。挂载点取自 dsc-core 的挂载点表,清单校验阶段遇到表外名字按 unknown-mount 拒绝。",
+      "items": {
+        "$ref": "#/$defs/mount"
+      },
+      "uniqueItems": true
+    },
+    "conflicts": {
+      "type": "array",
+      "description": "预留,引擎当前不读。清单支持 conflicts,安装时按插件 id 判定冲突并返回 conflict;但由 meta.json 推导清单的两条路径(离线包与市场)都不读取本字段,写在这里不产生任何拦截效果,冲突声明仍须写在产物导出的 manifest 里。",
+      "items": {
+        "$ref": "#/$defs/pluginId"
+      }
     },
     "dependencies": {
       "type": "object",
@@ -51,7 +66,7 @@
     },
     "attached": {
       "type": "object",
-      "description": "可选附加资源。整个字段可缺省;内部子字段可单独缺省;允许空对象 {},语义由使用者兜底。",
+      "description": "预留,引擎当前不读。可选附加资源,供合集与展示侧自行取用。整个字段可缺省;内部子字段可单独缺省;允许空对象 {},语义由使用者兜底。",
       "properties": {
         "favicon": {
           "$ref": "#/$defs/link",
@@ -113,7 +128,7 @@
     },
     "capability": {
       "type": "string",
-      "description": "能力名,取自 dsc-core 的能力表",
+      "description": "能力名,取自 dsc-core 的能力表 CORE_CAPABILITIES",
       "enum": [
         "sessions:list",
         "sessions:read",
@@ -121,8 +136,28 @@
         "events:session",
         "notify",
         "settings:locale",
+        "net:fetch",
+        "assets:read",
         "plugins:storage",
-        "net:fetch"
+        "chat:request",
+        "provider:source"
+      ]
+    },
+    "mount": {
+      "type": "string",
+      "description": "挂载点名,取自 dsc-core 的挂载点表 MOUNT_POINTS",
+      "enum": [
+        "session:changed",
+        "chat:before-request"
+      ]
+    },
+    "pluginId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{2,63}$",
+      "description": "插件 id,按清单的 id 规则判定,与 npm 包名不是一回事;引擎按它比对已安装插件",
+      "examples": [
+        "dsc-demo-log",
+        "dsc-session-digest"
       ]
     },
     "link": {

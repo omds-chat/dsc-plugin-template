@@ -374,6 +374,12 @@ const deriveMetaFromPackage = () => {
   if (dsc.attached !== undefined) {
     meta.attached = dsc.attached
   }
+  // 与 build.mjs 的 buildMeta 保持一致:三项原样搬运,没写就不产出
+  for (const key of ['capabilities', 'mounts', 'conflicts']) {
+    if (dsc[key] !== undefined) {
+      meta[key] = dsc[key]
+    }
+  }
   return meta
 }
 

@@ -18,7 +18,9 @@
       "en-US": "dsc plugin development template"
     },
     "home_page": "https://github.com/omds-chat/dsc-plugin-template",
-    "repo_link": "https://github.com/omds-chat/dsc-plugin-template"
+    "repo_link": "https://github.com/omds-chat/dsc-plugin-template",
+    "capabilities": ["events:session", "notify"],
+    "mounts": ["session:changed"]
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

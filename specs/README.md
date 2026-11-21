@@ -45,6 +45,8 @@ node scripts/validate-specs.mjs <meta.json> --schema meta # 校验单个运行�
 | 离线包预检里体积检查的位置 | 引擎说明与用户指南的预检表把「`plugin.js` 不超过 2 MB」列在 `meta.json` 解析与 UTF-8 检查之后 | 取到 `plugin.js` 后立即比对体积,早于 `meta.json` 解码与解析;体积与清单同时不合规时报 `package-too-large` | 按实现排序,写进 [开发规范](plugin-develop-spec.md) 6.2 |
 | `meta.json` 的 UTF-8 要求 | 预检表只写「可解析」「`name`、`version`、`author` 非空」「版本为三段数字」 | 先按严格 UTF-8 解码,非法字节序列按 `invalid-meta` 拒绝,不会进入字段校验 | 写进 [开发规范](plugin-develop-spec.md) 4 与 6.2 的 `invalid-meta` 口径 |
 | `meta.json` 的 `description` 形态 | 运行时 meta Schema 与[开发规范](plugin-develop-spec.md) 4 要求 `description` 为双语对象,至少含 `zh-CN` 或 `en-US` 一项 | 引擎接受字符串形式的 `description`,两种语言按同一内容处理;字段缺失也不拒绝,按空串处理 | Schema 与引擎分开写:Schema 从严,引擎的最小校验单独列出 |
+| `meta.json` 的 `mounts` | 引擎用户指南写「`meta.json` 写了 `mounts` 就原样带进清单」 | 离线包预检只取 `capabilities` 与 `dependencies.dsc`,不读 `mounts`;市场解析 `meta.json` 时读它并写进清单的 `mounts`,缺省时由产物导出的清单补齐 | 按实现分别记述两条安装路径,写进[开发规范](plugin-develop-spec.md) 4 |
+| `meta.json` 的 `conflicts` | 上游只在清单层描述 `conflicts`,清单与用户指南都把它当作清单字段 | 由 `meta.json` 推导清单的两条路径都不读 `conflicts`,该字段不影响安装结果 | Schema 里保留该字段并标注「预留,引擎当前不读」,写进[开发规范](plugin-develop-spec.md) 4 |
 | 版本范围的写法 | 运行时 meta Schema 把 `dependencies.dsc` 描述为 semver range,`>=1.0.0 <2.0.0` 这类组合范围也能通过 Schema | 清单 `engines` 与离线包的 `dependencies.dsc` 都只接受单段比较表达式;组合范围在离线包预检阶段按 `invalid-meta` 拒绝,清单侧的 `engines` 才按 `incompatible-version` 拒绝 | 两个字段分别说明,并提示 `dependencies.dsc` 也要写成单段表达式 |
 | 带 `=` 前缀的精确版本 | 版本范围只写「支持 `^`、`~`、`>=`、`<=` 与精确版本」,未提等号前缀 | 范围规则接受 `=1.0.0`,与 `1.0.0` 等价,按三段数字比较 | [开发规范](plugin-develop-spec.md) 3 补上 `=` |
 

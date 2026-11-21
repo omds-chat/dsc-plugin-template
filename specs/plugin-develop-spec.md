@@ -114,17 +114,21 @@ export const manifest: PluginManifest = {
 | `author` | 是 | 非空字符串 |
 | `repo_link` | 是 | 合法 URI |
 | `home_page` | 否 | 合法 URI |
-| `capabilities` | 否 | 能力名数组,离线包据此推导清单;重复项会被去重 |
+| `capabilities` | 否 | 能力名数组,取自能力表;离线包与市场都据此推导清单,重复项会被去重 |
+| `mounts` | 否 | 挂载点名数组,取自挂载点表,不得重复;市场推导清单时读它,离线包推导不读 |
+| `conflicts` | 否 | 预留,引擎当前不读;插件 id 数组,按清单 id 规则取值的冲突声明 |
 | `dependencies.dsc` | 是 | 声明兼容的 dsc 版本文本 |
-| `attached` | 否 | 可选附加资源:`favicon` 为 URI,`intro_image` 为不重复的 URI 数组 |
+| `attached` | 否 | 预留,引擎当前不读;可选附加资源:`favicon` 为 URI,`intro_image` 为不重复的 URI 数组 |
 
 引擎对离线包的 `meta.json` 只做最小校验:`meta.json` 须是合法 UTF-8 且可解析,`name`、`version`、`author` 非空,`version` 为三段数字,`dependencies.dsc` 存在时须为单段版本范围,任一不满足按 `invalid-meta` 拒绝。构建时按 [运行时 meta Schema](../schemas/runtime/meta.json) 做完整自校验,比引擎更严,便于尽早发现问题。
 
-三条与清单的关系:
+五条与清单的关系:
 
 - `meta.json` 的 `capabilities` 用于推导安装清单,与插件市场使用同一 id 规则;缺该字段、`capabilities` 不是非空字符串数组,或 `name` 无法收敛出插件 id 时,改用产物导出的 `manifest`;两者都没有时安装结果为 `invalid-manifest`。
 - 由 `meta.json` 推导清单时,`dependencies.dsc` 会被当作清单的 `engines` 使用。该字段必须写成清单接受的单段比较表达式:写成 `>=1.0.0 <2.0.0` 这类组合范围时,离线包预检阶段即按 `invalid-meta` 拒绝,原因说明指向该字段,不会走到清单侧;只有清单自身的 `engines` 写成组合范围时才返回 `incompatible-version`。
 - `dependencies.dsc` 与清单的 `engines` 是两个字段:前者在 meta Schema 中按 semver 文本描述,后者只接受单段比较表达式。
+- `meta.json` 的 `mounts` 只在市场侧参与推导:市场解析 `meta.json` 时会读它并写进清单的 `mounts`;离线包预检不读该字段,包里写了也不会进清单,挂载点仍由产物导出的 `manifest.mounts` 补齐,与没写该字段走同一条路径。
+- `meta.json` 的 `conflicts` 是预留字段:派生清单的两条路径(离线包与市场)都不读取它,写在这里不会拦截任何已安装插件;冲突声明须写在产物导出的 `manifest.conflicts` 里,由引擎在安装时按插件 id 判定。
 
 ## 5. 作者签名与公钥位置
 

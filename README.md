@@ -174,6 +174,11 @@ dist/
 | `dependencies.dsc` | `dsc.engines` | 是 |
 | `home_page` | `dsc.home_page`,缺省则不写 | 否 |
 | `attached` | `dsc.attached`,缺省则不写 | 否 |
+| `capabilities` | `dsc.capabilities`,缺省则不写 | 否 |
+| `mounts` | `dsc.mounts`,缺省则不写 | 否 |
+| `conflicts` | `dsc.conflicts`,缺省则不写 | 否 |
+
+`capabilities`、`mounts` 与 `conflicts` 由构建原样搬运:`package.json` 的 `dsc` 块里写什么就产出什么,没写就不产出该字段,构建不补空数组,也不改写取值。取值仍须落在 Schema 允许的范围内——能力名取自能力表,挂载点名取自挂载点表,`conflicts` 的元素须是插件 id——非法取值在构建期直接报错。手工补进 `dist/` 的字段不会保留:`meta.json` 每次构建都从 `package.json` 重新生成。
 
 `package.json` 里的 `dsc` 块:
 
@@ -182,7 +187,9 @@ dist/
   "engines": "^1.0.0",
   "description": { "zh-CN": "示例插件", "en-US": "Demo plugin" },
   "home_page": "https://github.com/omds-chat/dsc-plugin-template",
-  "repo_link": "https://github.com/omds-chat/dsc-plugin-template"
+  "repo_link": "https://github.com/omds-chat/dsc-plugin-template",
+  "capabilities": ["events:session", "notify"],
+  "mounts": ["session:changed"]
 }
 ```
 

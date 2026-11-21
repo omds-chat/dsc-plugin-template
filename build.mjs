@@ -98,6 +98,28 @@ const assertLf = (bytes, name) => {
 
 const NAME_PATTERN = /^(?:dsc-[a-z0-9][a-z0-9._-]*|@[a-z0-9][a-z0-9._-]*\/dsc-[a-z0-9][a-z0-9._-]*)$/
 const VERSION_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/
+const PLUGIN_ID_PATTERN = /^[a-z][a-z0-9-]{2,63}$/
+
+/** 从 dsc 块原样搬运到 meta.json 的字段:写了就产出,没写就不产出 */
+const META_PASSTHROUGH_FIELDS = ['capabilities', 'mounts', 'conflicts']
+
+/** 能力表,取值与 schemas/runtime/meta.json 的 capability 枚举一致 */
+const CAPABILITIES = [
+  'sessions:list',
+  'sessions:read',
+  'sessions:rename',
+  'events:session',
+  'notify',
+  'settings:locale',
+  'net:fetch',
+  'assets:read',
+  'plugins:storage',
+  'chat:request',
+  'provider:source',
+]
+
+/** 挂载点表,取值与 schemas/runtime/meta.json 的 mount 枚举一致 */
+const MOUNTS = ['session:changed', 'chat:before-request']
 
 const isObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value)
 const isText = (value) => typeof value === 'string' && value.length > 0
@@ -129,12 +151,28 @@ const buildMeta = (pkg) => {
   if (dsc.home_page !== undefined) meta.home_page = dsc.home_page
   if (dsc.attached !== undefined) meta.attached = dsc.attached
 
+  // 三项原样搬运:写什么就产出什么,没写就不产出该字段,不补空数组
+  for (const key of META_PASSTHROUGH_FIELDS) {
+    if (dsc[key] !== undefined) meta[key] = dsc[key]
+  }
+
   return meta
 }
 
 /* ---------- schema 自校验 ---------- */
 
-const META_FIELDS = ['name', 'version', 'license', 'description', 'author', 'home_page', 'repo_link', 'dependencies', 'attached']
+const META_FIELDS = [
+  'name',
+  'version',
+  'license',
+  'description',
+  'author',
+  'home_page',
+  'repo_link',
+  'dependencies',
+  'attached',
+  ...META_PASSTHROUGH_FIELDS,
+]
 const META_REQUIRED = ['name', 'version', 'license', 'description', 'author', 'repo_link', 'dependencies']
 
 const validateMeta = (meta) => {
@@ -207,6 +245,37 @@ const validateMeta = (meta) => {
             if (!isLink(image)) errors.push('attached.intro_image 的元素必须是合法的 URI')
           }
           if (new Set(images).size !== images.length) errors.push('attached.intro_image 的元素不得重复')
+        }
+      }
+    }
+  }
+
+  // capabilities 与 mounts 只接受表内取值,且不得重复,与 Schema 的 enum + uniqueItems 一致
+  const validateEnumList = (key, allowed) => {
+    const list = meta[key]
+    if (!Array.isArray(list)) {
+      errors.push(key + ' 必须是数组')
+      return
+    }
+    for (const item of list) {
+      if (!isText(item)) errors.push(key + ' 的元素必须是非空字符串')
+      else if (!allowed.includes(item)) errors.push(key + ' 不允许的取值: ' + item + ',只接受 ' + allowed.join('、'))
+    }
+    if (new Set(list).size !== list.length) errors.push(key + ' 的元素不得重复')
+  }
+
+  if ('capabilities' in meta) validateEnumList('capabilities', CAPABILITIES)
+  if ('mounts' in meta) validateEnumList('mounts', MOUNTS)
+
+  // conflicts 的元素按清单 id 规则取值;Schema 未要求去重,这里也不判重
+  if ('conflicts' in meta) {
+    const conflicts = meta.conflicts
+    if (!Array.isArray(conflicts)) {
+      errors.push('conflicts 必须是数组')
+    } else {
+      for (const id of conflicts) {
+        if (!isText(id) || !PLUGIN_ID_PATTERN.test(id)) {
+          errors.push('conflicts 的元素必须是插件 id,匹配 ' + PLUGIN_ID_PATTERN.source + ',实际为 ' + JSON.stringify(id))
         }
       }
     }
